@@ -6360,7 +6360,7 @@ function GradeUsageReferencesModal({
       method: "主管部门评定",
       forcedRules: "优秀率控制规则",
       operator: "Yara",
-      updateStatus: "无法更新!",
+      updateStatus: "无需更新",
     },
   ];
 
@@ -6398,7 +6398,7 @@ function GradeUsageReferencesModal({
       controlRule: "按等级比例分布",
       status: "禁用",
       operator: "系统",
-      updateStatus: "去更新",
+      updateStatus: "无需更新",
     },
   ];
 
