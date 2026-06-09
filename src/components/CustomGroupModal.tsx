@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { X, Plus, Minus, Users } from 'lucide-react';
 
-export default function CustomGroupModal({ onClose, onSave }: { onClose: () => void, onSave: () => void }) {
-  const [groups, setGroups] = useState([{ id: 1, name: '分组1', users: [] }]);
+export default function CustomGroupModal({ onClose, onSave, initialGroups }: { onClose: () => void, onSave: (configuredGroups?: any[]) => void, initialGroups?: any[] }) {
+  const [groups, setGroups] = useState(initialGroups || [{ id: 1, name: '分组1', users: [] }]);
 
   const addGroup = () => {
     setGroups([...groups, { id: Date.now(), name: `分组${groups.length + 1}`, users: [] }]);
@@ -25,24 +25,44 @@ export default function CustomGroupModal({ onClose, onSave }: { onClose: () => v
         </div>
         
         <div className="p-6 max-h-[400px] overflow-y-auto">
-          {groups.map((group) => (
-            <div key={group.id} className="flex items-start gap-4 mb-4 bg-[#F9FAFB] p-4 rounded-[8px] border border-[#E5E7EB]">
-              <div className="w-[60px] text-[14px] text-[#4B5563] pt-1">{group.name}</div>
-              <div className="flex-1">
-                <div className="w-full min-h-[32px] px-[12px] py-1 border border-[#E5E7EB] bg-white rounded-[4px] text-[14px] flex items-center text-[#9CA3AF] cursor-pointer hover:border-[#15B8A6]">
-                  <Users size={14} className="mr-2 text-[#9CA3AF]" />
-                  请选择人员
+          <div className="flex items-center gap-4 mb-3 px-2">
+            <div className="w-[120px] text-[13px] font-medium text-[#4B5563]">分组名称</div>
+            <div className="flex-1 text-[13px] font-medium text-[#4B5563]">组内人员</div>
+            <div className="w-8"></div>
+          </div>
+
+          <div className="flex flex-col gap-2 mb-4">
+            {groups.map((group) => (
+              <div key={group.id} className="flex items-start gap-4 p-2 bg-[#F9FAFB] rounded-[8px] border border-[#E5E7EB]">
+                <div className="w-[120px]">
+                  <input 
+                    type="text" 
+                    value={group.name}
+                    onChange={(e) => {
+                      const newGroups = groups.map(g => g.id === group.id ? { ...g, name: e.target.value } : g);
+                      setGroups(newGroups);
+                    }}
+                    className="w-full h-[32px] px-2 text-[14px] border border-[#E5E7EB] bg-white rounded-[4px] focus:outline-none focus:border-[#15B8A6] transition-colors"
+                  />
+                </div>
+                <div className="flex-1">
+                  <div className="w-full min-h-[32px] px-[12px] py-1 border border-[#E5E7EB] bg-white rounded-[4px] text-[14px] flex items-center text-[#9CA3AF] cursor-pointer hover:border-[#15B8A6] transition-colors">
+                    <Users size={14} className="mr-2 text-[#9CA3AF]" />
+                    请选择人员
+                  </div>
+                </div>
+                <div className="w-8 flex items-center pt-1">
+                  <button 
+                    onClick={() => removeGroup(group.id)}
+                    className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${groups.length > 1 ? 'text-[#9CA3AF] hover:text-[#EF4444] hover:bg-[#FEE2E2]' : 'text-[#D1D5DB] cursor-not-allowed opacity-50'}`}
+                    disabled={groups.length <= 1}
+                  >
+                    <Minus size={16} />
+                  </button>
                 </div>
               </div>
-              <button 
-                onClick={() => removeGroup(group.id)}
-                className={`w-8 h-8 rounded border flex items-center justify-center transition-colors ${groups.length > 1 ? 'border-[#E5E7EB] bg-white text-[#9CA3AF] hover:text-[#EF4444] hover:border-[#EF4444]' : 'border-transparent text-[#D1D5DB] cursor-not-allowed hidden'}`}
-                disabled={groups.length <= 1}
-              >
-                <Minus size={16} />
-              </button>
-            </div>
-          ))}
+            ))}
+          </div>
 
           <button 
             onClick={addGroup}
@@ -57,7 +77,7 @@ export default function CustomGroupModal({ onClose, onSave }: { onClose: () => v
           <button onClick={onClose} className="px-6 py-2 border border-[#E5E7EB] rounded-[4px] text-[14px] text-[#4B5563] hover:bg-[#F3F4F6]">
             取消
           </button>
-          <button onClick={onSave} className="px-6 py-2 bg-[#15B8A6] hover:bg-[#0D9488] text-white rounded-[4px] text-[14px]">
+          <button onClick={() => onSave(groups)} className="px-6 py-2 bg-[#15B8A6] hover:bg-[#0D9488] text-white rounded-[4px] text-[14px]">
             确定
           </button>
         </div>
