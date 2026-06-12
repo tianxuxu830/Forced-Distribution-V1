@@ -3600,8 +3600,9 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
           </div>
 
           {/* 等级分布设置 */}
-          <div>
-            <div className="flex items-center justify-between mb-[24px]">
+          {levelRuleType !== "none" && (
+            <div>
+              <div className="flex items-center justify-between mb-[24px]">
               <div className="flex items-center gap-2">
                 <div className="w-[4px] h-[16px] bg-[#15B8A6] rounded-[2px]"></div>
                 <h2 className="text-[16px] font-medium text-[#1F2937]">
@@ -4094,6 +4095,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
           )}
         </div>
       </div>
+          )}
         </div>
       </div>
       {showRankScopeModal && (
