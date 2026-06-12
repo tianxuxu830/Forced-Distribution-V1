@@ -3599,26 +3599,14 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
             </div>
           </div>
 
-          {/* 强制分布设置 */}
+          {/* 等级分布设置 */}
           <div>
             <div className="flex items-center justify-between mb-[24px]">
               <div className="flex items-center gap-2">
                 <div className="w-[4px] h-[16px] bg-[#15B8A6] rounded-[2px]"></div>
                 <h2 className="text-[16px] font-medium text-[#1F2937]">
-                  强制分布控制
+                  等级分布控制
                 </h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[14px] text-[#4B5563]">强制分布 :</span>
-                <button
-                  className={`w-10 h-5 rounded-full relative transition-colors ${isGlobalForcedDistEnabled ? "bg-[#15B8A6]" : "bg-[#E5E7EB]"}`}
-                  onClick={() => setIsGlobalForcedDistEnabled(!isGlobalForcedDistEnabled)}
-                  type="button"
-                >
-                  <div
-                    className={`w-4 h-4 bg-white rounded-full absolute top-[2px] transition-transform ${isGlobalForcedDistEnabled ? "translate-x-[22px]" : "translate-x-[2px]"}`}
-                  ></div>
-                </button>
               </div>
             </div>
 
@@ -3648,11 +3636,17 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                       {node.id !== "hr"
                         ? `${auditIndex}.${node.name}`
                         : node.name}
-                      {node.enabled && (
+                      {node.enabled ? (
                         <span
                           className={`text-[10px] px-[4px] py-[2px] leading-none rounded-[2px] border ${node.controlMethod === "warn" ? "bg-[#FFFBE6] text-[#FAAD14] border-[#FFE58F]" : "bg-[#E6F4FF] text-[#1677FF] border-[#91CAFF]"}`}
                         >
                           {node.controlMethod === "warn" ? "仅提醒" : "强控"}
+                        </span>
+                      ) : (
+                        <span
+                          className="text-[10px] px-[4px] py-[2px] leading-none rounded-[2px] border bg-[#F5F5F5] text-[#8C8C8C] border-[#D9D9D9]"
+                        >
+                          不控制
                         </span>
                       )}
                       {activeNodeId === node.id && (
@@ -3669,7 +3663,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                   <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[2px]">
                     <span className="text-red-500 mr-1">*</span>
                     <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
-                      强制控制 :
+                      等级分布控制 :
                     </span>
                   </div>
                   <button
