@@ -2975,7 +2975,7 @@ function FormRow({
 }) {
   return (
     <div className="flex items-start">
-      <div className="w-[140px] pt-[6px] flex justify-end pr-[16px] shrink-0">
+      <div className="w-[165px] pt-[6px] flex justify-end pr-[16px] shrink-0">
         {required && <span className="text-red-500 mr-1">*</span>}
         <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
           {label} :
@@ -3278,9 +3278,9 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
 
             <div className="flex flex-col gap-[20px] pl-[12px]">
               <div className="flex items-center">
-                <div className="w-[120px] flex justify-end pr-[16px] shrink-0 pt-[6px]">
+                <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[6px]">
                   <span className="text-red-500 mr-1">*</span>
-                  <span className="text-[14px] text-[#4B5563]">
+                  <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
                     绩效等级规则 :
                   </span>
                 </div>
@@ -3318,9 +3318,9 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
               {levelRuleType !== "none" && (
                 <>
                   <div className="flex items-center mt-[2px]">
-                    <div className="w-[120px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
+                    <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
                       <span className="text-red-500 mr-1">*</span>
-                      <span className="text-[14px] text-[#4B5563]">
+                      <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
                         等级规则 :
                       </span>
                     </div>
@@ -3346,7 +3346,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                         placeholder="请选择等级规则"
                         className="w-full max-w-[320px]"
                         onCreate={() => setShowCreateLevelRuleSimModal(true)}
-                        createLabel="+ 快捷创建等级规则"
+                        createLabel="+ 创建等级规则"
                       />
                     ) : (
                       <div className="h-[32px] flex items-center px-[8px] bg-[#F3F4F6] border border-[#E5E7EB] rounded-[4px] text-[14px] text-[#6B7280] cursor-not-allowed w-full max-w-[320px]">
@@ -3358,9 +3358,9 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                   {levelRuleType === "rank" && selectedLevelRule !== "" && (
                     <>
                       <div className="flex items-center">
-                        <div className="w-[120px] flex items-center justify-end pr-[16px] shrink-0 pt-[8px]">
+                        <div className="w-[155px] flex items-center justify-end pr-[16px] shrink-0 pt-[8px]">
                           <span className="text-red-500 mr-1">*</span>
-                          <span className="text-[14px] text-[#4B5563]">
+                          <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
                             等级排名生成范围 :
                           </span>
                           <div className="group relative ml-1 flex items-center mt-[-2px]">
@@ -3416,8 +3416,8 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                       </div>
 
                       <div className="flex">
-                        <div className="w-[120px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
-                          <span className="text-[14px] text-[#4B5563]">
+                        <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
+                          <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
                             等级排名比例 :
                           </span>
                         </div>
@@ -3666,9 +3666,9 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
               {/* 当前节点的配置 */}
               <div className="flex flex-col gap-[20px] p-6 bg-[#F9FAFB] rounded-[8px] border border-[#E5E7EB]">
                 <div className="flex items-center">
-                  <div className="w-[120px] flex justify-end pr-[16px] shrink-0 pt-[2px]">
+                  <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[2px]">
                     <span className="text-red-500 mr-1">*</span>
-                    <span className="text-[14px] text-[#4B5563]">
+                    <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
                       强制控制 :
                     </span>
                   </div>
@@ -3696,9 +3696,9 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                       {levelRuleType !== "none" && (
                         <div className="flex flex-col gap-4">
                           <div className="flex items-center">
-                            <div className="w-[120px] flex justify-end pr-[16px] shrink-0 pt-[6px]">
+                            <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[6px]">
                               <span className="text-red-500 mr-1">*</span>
-                              <span className="text-[14px] text-[#4B5563]">
+                              <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
                                 控制范围 :
                               </span>
                             </div>
@@ -3752,9 +3752,9 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
 
                           {activeNode.controlScope === "group" && activeNode.groupMethod === "dept" && (
                             <div className="flex items-center">
-                              <div className="w-[120px] flex justify-end pr-[16px] shrink-0 pt-[6px]">
+                              <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[6px]">
                                 <span className="text-red-500 mr-1">*</span>
-                                <span className="text-[14px] text-[#4B5563]">
+                                <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
                                   部门层级 :
                                 </span>
                               </div>
@@ -3778,9 +3778,9 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
 
                           {activeNode.controlScope === "group" && activeNode.groupMethod === "custom" && (
                             <div className="flex items-start">
-                              <div className="w-[120px] flex justify-end pr-[16px] shrink-0 pt-[6px]">
+                              <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[6px]">
                                 <span className="text-red-500 mr-1">*</span>
-                                <span className="text-[14px] text-[#4B5563]">
+                                <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
                                   自定义分组 :
                                 </span>
                               </div>
@@ -3824,9 +3824,9 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                       )}
 
                       <div className="flex items-center">
-                        <div className="w-[120px] flex justify-end pr-[16px] shrink-0 pt-[6px]">
+                        <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[6px]">
                           <span className="text-red-500 mr-1">*</span>
-                          <span className="text-[14px] text-[#4B5563]">
+                          <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
                             控制方式 :
                           </span>
                         </div>
@@ -3885,8 +3885,8 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                           </div>
                           <div className="flex-1 p-6 flex flex-col gap-[20px]">
                             <div className="flex items-start">
-                              <div className="w-[120px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
-                                <span className="text-[14px] text-[#4B5563]">
+                              <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
+                                <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
                                   强制分布规则 :
                                 </span>
                               </div>
@@ -3898,15 +3898,15 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                   placeholder="请选择"
                                   className="w-full"
                                   onCreate={() => setShowCreateForcedRuleSimModal(true)}
-                                  createLabel="+ 快捷创建强制分布规则"
+                                  createLabel="+ 创建强制分布规则"
                                 />
                               </div>
                             </div>
 
                             <div className="flex items-center">
-                              <div className="w-[120px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
+                              <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
                                 <span className="text-red-500 mr-1">*</span>
-                                <span className="text-[14px] text-[#4B5563]">
+                                <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
                                   控制规则 :
                                 </span>
                               </div>
@@ -3927,9 +3927,9 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                             {activeNode.controlRule === "ratio" && (
                               <>
                                 <div className="flex items-center">
-                                  <div className="w-[120px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
+                                  <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
                                     <span className="text-red-500 mr-1">*</span>
-                                    <span className="text-[14px] text-[#4B5563]">
+                                    <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
                                       余数处理 :
                                     </span>
                                   </div>
@@ -3950,9 +3950,9 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                 </div>
                                 {activeNode.remainderRule === "specific" && (
                                   <div className="flex items-center mt-[20px]">
-                                    <div className="w-[120px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
+                                    <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
                                       <span className="text-red-500 mr-1">*</span>
-                                      <span className="text-[14px] text-[#4B5563]">
+                                      <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
                                         指定等级 :
                                       </span>
                                     </div>
@@ -3996,8 +3996,8 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                       ) : (
                         <div className="flex flex-col gap-[20px]">
                           <div className="flex items-center mt-[12px]">
-                            <div className="w-[120px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
-                              <span className="text-[14px] text-[#4B5563]">
+                            <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
+                              <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
                                 强制分布规则 :
                               </span>
                             </div>
@@ -4008,14 +4008,14 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                               placeholder="请选择"
                               className="w-[320px]"
                               onCreate={() => setShowCreateForcedRuleSimModal(true)}
-                              createLabel="+ 快捷创建强制分布规则"
+                              createLabel="+ 创建强制分布规则"
                             />
                           </div>
 
                           <div className="flex items-center">
-                            <div className="w-[120px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
+                            <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
                               <span className="text-red-500 mr-1">*</span>
-                              <span className="text-[14px] text-[#4B5563]">
+                              <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
                                 控制规则 :
                               </span>
                             </div>
@@ -4034,9 +4034,9 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                           {activeNode.controlRule === "ratio" && (
                             <>
                               <div className="flex items-center">
-                                <div className="w-[120px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
+                                <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
                                   <span className="text-red-500 mr-1">*</span>
-                                  <span className="text-[14px] text-[#4B5563]">
+                                  <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
                                     余数处理 :
                                   </span>
                                 </div>
@@ -4055,9 +4055,9 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                               </div>
                               {activeNode.remainderRule === "specific" && (
                                 <div className="flex items-center mt-[20px]">
-                                  <div className="w-[120px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
+                                  <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
                                     <span className="text-red-500 mr-1">*</span>
-                                    <span className="text-[14px] text-[#4B5563]">
+                                    <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
                                       指定等级 :
                                     </span>
                                   </div>
@@ -4144,7 +4144,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
             <div className="flex flex-col gap-4 font-sans">
               {/* Rules selectors matching Figure 2 exactly */}
               <div className="flex items-center gap-2">
-                <div className="w-[140px] text-right text-[13px] text-[#4B5563]">
+                <div className="w-[140px] text-right text-[13px] text-[#4B5563] whitespace-nowrap">
                   <span className="text-red-500 mr-1">*</span>同分超人数规则：
                 </div>
                 <div className="flex-1">
@@ -4160,7 +4160,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="w-[140px] text-right text-[13px] text-[#4B5563]">
+                <div className="w-[140px] text-right text-[13px] text-[#4B5563] whitespace-nowrap">
                   <span className="text-red-500 mr-1">*</span>余数处理：
                 </div>
                 <div className="flex-1">
@@ -4177,7 +4177,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
 
               {tempGroupRemainderRule === "specific" && (
                 <div className="flex items-center gap-2">
-                  <div className="w-[140px] text-right text-[13px] text-[#4B5563]">
+                  <div className="w-[140px] text-right text-[13px] text-[#4B5563] whitespace-nowrap">
                     指定归属等级：
                   </div>
                   <div className="flex-1">
@@ -4363,7 +4363,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
             <div className="flex flex-col gap-4 font-sans">
               {/* Rules selectors matching Figure 2 exactly */}
               <div className="flex items-center gap-2">
-                <div className="w-[140px] text-right text-[13px] text-[#4B5563]">
+                <div className="w-[140px] text-right text-[13px] text-[#4B5563] whitespace-nowrap">
                   <span className="text-red-500 mr-1">*</span>同分超人数规则：
                 </div>
                 <div className="flex-1">
@@ -4379,7 +4379,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="w-[140px] text-right text-[13px] text-[#4B5563]">
+                <div className="w-[140px] text-right text-[13px] text-[#4B5563] whitespace-nowrap">
                   <span className="text-red-500 mr-1">*</span>余数处理：
                 </div>
                 <div className="flex-1">
@@ -4396,7 +4396,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
 
               {tempRemainderRule === "specific" && (
                 <div className="flex items-center gap-2">
-                  <div className="w-[140px] text-right text-[13px] text-[#4B5563]">
+                  <div className="w-[140px] text-right text-[13px] text-[#4B5563] whitespace-nowrap">
                     指定归属等级：
                   </div>
                   <div className="flex-1">
@@ -6455,7 +6455,7 @@ function AssessmentScheme({
                             onChange={setSelectedLevelRule}
                             placeholder="请选择等级规则"
                             onCreate={() => setShowCreateLevelRuleMainModal(true)}
-                            createLabel="+ 快捷创建等级规则"
+                            createLabel="+ 创建等级规则"
                           />
                         </div>
                       </div>
@@ -6764,7 +6764,7 @@ function AssessmentScheme({
                                                 placeholder="请选择"
                                                 className="flex-1 min-w-[120px]"
                                                 onCreate={() => setShowCreateForcedRuleMainModal(true)}
-                                                createLabel="+ 快捷创建强制分布规则"
+                                                createLabel="+ 创建强制分布规则"
                                               />
                                               {setting.scope !== "all" && (
                                                 <div className="flex items-center gap-2">
@@ -7261,7 +7261,7 @@ function GroupConfigModal({
                       placeholder="请选择"
                       className="w-full max-w-[240px]"
                       onCreate={onCreateRule}
-                      createLabel="+ 快捷创建强制分布规则"
+                      createLabel="+ 创建强制分布规则"
                     />
                   </td>
                 </tr>
@@ -11153,7 +11153,7 @@ function QuickCreateLevelRuleModal({
       <div className="relative bg-white w-full max-w-[500px] rounded-[8px] overflow-hidden shadow-[0_4px_24px_rgba(0,0,0,0.1)] flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 bg-[#F9FAFB]">
           <h3 className="text-[14px] font-semibold text-neutral-800">
-            快捷创建选项 - 等级规则
+            创建选项 - 等级规则
           </h3>
           <button
             onClick={onClose}
@@ -11347,7 +11347,7 @@ function QuickCreateForcedRuleModal({
       <div className="relative bg-white w-full max-w-[480px] rounded-[8px] overflow-hidden shadow-[0_4px_24px_rgba(0,0,0,0.1)] flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 bg-[#F9FAFB]">
           <h3 className="text-[14px] font-semibold text-neutral-800">
-            快捷创建选项 - 强制分布规则
+            创建选项 - 强制分布规则
           </h3>
           <button
             onClick={onClose}
