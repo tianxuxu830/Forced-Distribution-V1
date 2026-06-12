@@ -40,11 +40,13 @@ import {
   Minus,
   Trash2,
   History,
+  Layers,
   Maximize2,
   Filter,
   SlidersHorizontal,
   MoreHorizontal,
   Pencil,
+  ChevronDown,
 } from "lucide-react";
 import ScopeConfigModal from "./components/ScopeConfigModal";
 import CustomGroupModal from "./components/CustomGroupModal";
@@ -613,6 +615,7 @@ export default function App() {
               setCurrentView={navigateTo}
               newlyCreatedRule={newlyCreatedRule}
               rulesList={rulesList}
+              setRulesList={setRulesList}
             />
           </div>
         </main>
@@ -2991,6 +2994,7 @@ function CustomSelect({
   placeholder = "请选择",
   onCreate,
   createLabel,
+  className = "w-[400px]",
 }: {
   options: { value: string; label: string }[];
   value: string;
@@ -2998,6 +3002,7 @@ function CustomSelect({
   placeholder?: string;
   onCreate?: () => void;
   createLabel?: string;
+  className?: string;
 }) {
   const [isOpen, setIsOpen] = React.useState(false);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
@@ -3018,7 +3023,7 @@ function CustomSelect({
   }, []);
 
   return (
-    <div className="relative w-[400px]" ref={dropdownRef}>
+    <div className={`relative ${className}`} ref={dropdownRef}>
       <div
         className={`w-full h-[32px] px-[12px] border rounded-[4px] text-[14px] flex items-center justify-between cursor-pointer bg-white transition-colors ${isOpen ? "border-[#15B8A6] ring-1 ring-[#15B8A6]" : "border-[#E5E7EB] hover:border-[#15B8A6]"}`}
         onClick={() => setIsOpen(!isOpen)}
@@ -3077,7 +3082,121 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
   const [showRankScopeModal, setShowRankScopeModal] = useState(false);
   const [showCustomGroupModal, setShowCustomGroupModal] = useState(false);
   const [nodeCustomGroups, setNodeCustomGroups] = useState<Record<string, any[]>>({});
+  const [selectedLevelRule, setSelectedLevelRule] = useState("");
+  const [showCreateLevelRuleSimModal, setShowCreateLevelRuleSimModal] = useState(false);
+  const [showCreateForcedRuleSimModal, setShowCreateForcedRuleSimModal] = useState(false);
+  const [levelRuleOptions, setLevelRuleOptions] = useState([
+    { value: "4.29", label: "4.29等级规则" },
+    { value: "test", label: "测试等级" },
+    { value: "ratio_SC", label: "S-C等级比例规则" },
+  ]);
+  const [levelRulesMap, setLevelRulesMap] = useState<Record<string, { name: string; min: number; max: number }[]>>({
+    "4.29": [
+      { name: "S", min: 0, max: 10 },
+      { name: "A", min: 10, max: 30 },
+      { name: "B", min: 30, max: 90 },
+      { name: "C", min: 90, max: 100 },
+    ],
+    "test": [
+      { name: "S", min: 0, max: 15 },
+      { name: "A", min: 15, max: 40 },
+      { name: "B", min: 40, max: 80 },
+      { name: "C", min: 80, max: 100 },
+    ],
+    "ratio_SC": [
+      { name: "S", min: 0, max: 10 },
+      { name: "A", min: 10, max: 20 },
+      { name: "C", min: 20, max: 100 },
+    ],
+  });
+  const [simForcedRules, setSimForcedRules] = useState([
+    { value: "default", label: "默认结果 (2-7-1分布规则)" },
+    { value: "361", label: "361分布规则" },
+    { value: "special", label: "高管特殊分布规则" },
+  ]);
+  const [selectedSimForcedRule, setSelectedSimForcedRule] = useState("default");
+  const [isGlobalForcedDistEnabled, setIsGlobalForcedDistEnabled] = useState(true);
+  const [rankRatios, setRankRatios] = useState([
+    { name: "S", min: 0, max: 10 },
+    { name: "A", min: 10, max: 20 },
+    { name: "C", min: 20, max: 100 },
+  ]);
+  const [editingRatio, setEditingRatio] = useState<{ name: string; min: number; max: number } | null>(null);
+  const [isBatchEditingRatios, setIsBatchEditingRatios] = useState(false);
+  const [sameScoreRule, setSameScoreRule] = useState("allow_exceed"); // allow_exceed | push_to_next
+  const [remainderRule, setRemainderRule] = useState("next"); // next | specific
+  const [remainderSpecificLevel, setRemainderSpecificLevel] = useState("A");
+
+  const [groupRatiosOverride, setGroupRatiosOverride] = useState<Record<string, { name: string; min: number; max: number }[]>>({});
+  const [editingGroupRatios, setEditingGroupRatios] = useState<{ groupName: string; ratios: { name: string; min: number; max: number }[] } | null>(null);
+
+  const [groupSameScoreRule, setGroupSameScoreRule] = useState<Record<string, string>>({});
+  const [groupRemainderRule, setGroupRemainderRule] = useState<Record<string, string>>({});
+  const [groupRemainderSpecificLevel, setGroupRemainderSpecificLevel] = useState<Record<string, string>>({});
+
+  const [tempGroupSameScoreRule, setTempGroupSameScoreRule] = useState("allow_exceed");
+  const [tempGroupRemainderRule, setTempGroupRemainderRule] = useState("next");
+  const [tempGroupRemainderSpecificLevel, setTempGroupRemainderSpecificLevel] = useState("A");
+
+  const [inlineEditingGroup, setInlineEditingGroup] = useState<string | null>(null);
+  const [inlineGroupRatios, setInlineGroupRatios] = useState<{ name: string; min: number; max: number }[]>([]);
+  const [showGlobalPanel, setShowGlobalPanel] = useState(false);
+
+  const [showBreakdownDrawer, setShowBreakdownDrawer] = useState(false);
+  const [selectedRatioName, setSelectedRatioName] = useState<string | null>(null);
+  const [drawerSearchQuery, setDrawerSearchQuery] = useState("");
+  const [drawerViewMode, setDrawerViewMode] = useState<"level" | "group" | "config">("level");
+
+  const [previewGroupIndex, setPreviewGroupIndex] = useState(0);
+  const [groupSearchQuery, setGroupSearchQuery] = useState("");
+  const [isGroupsExpanded, setIsGroupsExpanded] = useState(false);
+
+  const [tempRankRatios, setTempRankRatios] = useState(rankRatios);
+  const [tempSameScoreRule, setTempSameScoreRule] = useState("allow_exceed");
+  const [tempRemainderRule, setTempRemainderRule] = useState("next");
+  const [tempRemainderSpecificLevel, setTempRemainderSpecificLevel] = useState("A");
   const mockGroups = ["Yara的测试公司", "鸭鸭部", "鸭鸭分部"];
+  const getActiveGroups = () => {
+    if (rankScope === "dept") {
+      return [
+        { name: "研发部", size: 30 },
+        { name: "销售部", size: 45 },
+        { name: "运营部", size: 15 },
+        { name: "市场部", size: 22 },
+        { name: "客服部", size: 28 },
+        { name: "人力资源部", size: 8 },
+        { name: "财务部", size: 6 },
+        { name: "技术支持部", size: 18 },
+        { name: "产品部", size: 12 },
+        { name: "设计部", size: 10 },
+        { name: "法务部", size: 4 },
+        { name: "行政部", size: 9 },
+      ];
+    } else if (rankScope === "eval_group") {
+      return [
+        { name: "核心高管组", size: 10 },
+        { name: "业务骨干组", size: 40 },
+        { name: "普通员工组", size: 25 },
+        { name: "中层管理组", size: 15 },
+        { name: "技术专家组", size: 20 },
+        { name: "新入职培训组", size: 35 },
+        { name: "销售精英组", size: 18 },
+        { name: "支撑后勤组", size: 12 },
+      ];
+    } else if (rankScope === "custom") {
+      return [
+        { name: "自定义A组", size: 15 },
+        { name: "自定义B组", size: 22 },
+        { name: "自定义C组", size: 18 },
+        { name: "自定义D组", size: 25 },
+        { name: "自定义E组", size: 30 },
+        { name: "自定义F组", size: 14 },
+        { name: "自定义G组", size: 10 },
+        { name: "自定义H组", size: 16 },
+      ];
+    }
+    return [];
+  };
 
   const [nodes, setNodes] = useState([
     {
@@ -3133,13 +3252,13 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="px-[16px] h-[32px] border border-[#E5E7EB] rounded-[4px] text-[14px] text-[#4B5563] hover:bg-[#F9FAFB]"
+            className="px-[16px] h-[32px] border border-[#E5E7EB] rounded-[4px] text-[14px] text-[#4B5563] hover:bg-[#F9FAFB] cursor-pointer"
           >
             取消
           </button>
           <button
             onClick={onBack}
-            className="px-[16px] h-[32px] bg-[#15B8A6] rounded-[4px] text-[14px] text-white hover:bg-[#0F9688]"
+            className="px-[16px] h-[32px] bg-[#15B8A6] rounded-[4px] text-[14px] text-white hover:bg-[#0F9688] cursor-pointer"
           >
             确定
           </button>
@@ -3171,7 +3290,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                       type="radio"
                       checked={levelRuleType === "none"}
                       onChange={() => setLevelRuleType("none")}
-                      className="w-4 h-4 text-[#15B8A6] focus:ring-[#15B8A6]"
+                      className="w-4 h-4 text-[#15B8A6] focus:ring-[#15B8A6] rounded text-primary-500"
                     />
                     <span className="text-[14px]">不开启</span>
                   </label>
@@ -3180,7 +3299,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                       type="radio"
                       checked={levelRuleType === "range"}
                       onChange={() => setLevelRuleType("range")}
-                      className="w-4 h-4 text-[#15B8A6] focus:ring-[#15B8A6]"
+                      className="w-4 h-4 text-[#15B8A6] focus:ring-[#15B8A6] rounded text-primary-500"
                     />
                     <span className="text-[14px]">按分数区间生成</span>
                   </label>
@@ -3189,7 +3308,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                       type="radio"
                       checked={levelRuleType === "rank"}
                       onChange={() => setLevelRuleType("rank")}
-                      className="w-4 h-4 text-[#15B8A6] focus:ring-[#15B8A6]"
+                      className="w-4 h-4 text-[#15B8A6] focus:ring-[#15B8A6] rounded text-primary-500"
                     />
                     <span className="text-[14px]">按分数排名生成</span>
                   </label>
@@ -3205,68 +3324,275 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                         等级规则 :
                       </span>
                     </div>
-                    <div className="h-[32px] flex items-center px-[8px] bg-[#F3F4F6] border border-[#E5E7EB] rounded-[4px] text-[14px] text-[#6B7280] cursor-not-allowed w-full max-w-[320px]">
-                      4.29
-                    </div>
+                    {levelRuleType === "rank" ? (
+                      <CustomSelect
+                        options={levelRuleOptions}
+                        value={selectedLevelRule}
+                        onChange={(val) => {
+                          setSelectedLevelRule(val);
+                          const ratios = levelRulesMap[val];
+                          if (ratios) {
+                            setRankRatios(ratios);
+                          } else {
+                            // default fallback
+                            setRankRatios([
+                              { name: "S", min: 0, max: 10 },
+                              { name: "A", min: 10, max: 30 },
+                              { name: "B", min: 30, max: 90 },
+                              { name: "C", min: 90, max: 100 },
+                            ]);
+                          }
+                        }}
+                        placeholder="请选择等级规则"
+                        className="w-full max-w-[320px]"
+                        onCreate={() => setShowCreateLevelRuleSimModal(true)}
+                        createLabel="+ 快捷创建等级规则"
+                      />
+                    ) : (
+                      <div className="h-[32px] flex items-center px-[8px] bg-[#F3F4F6] border border-[#E5E7EB] rounded-[4px] text-[14px] text-[#6B7280] cursor-not-allowed w-full max-w-[320px]">
+                        4.29
+                      </div>
+                    )}
                   </div>
-                  {levelRuleType === "rank" && (
-                    <div className="flex items-center">
-                      <div className="w-[120px] flex items-center justify-end pr-[16px] shrink-0 pt-[8px]">
-                        <span className="text-red-500 mr-1">*</span>
-                        <span className="text-[14px] text-[#4B5563]">
-                          等级排名生成范围 :
-                        </span>
-                        <div className="group relative ml-1 flex items-center mt-[-2px]">
-                          <Info
-                            size={14}
-                            className="text-[#15B8A6] cursor-help"
-                          />
-                          <RankScopeTooltip />
+
+                  {levelRuleType === "rank" && selectedLevelRule !== "" && (
+                    <>
+                      <div className="flex items-center">
+                        <div className="w-[120px] flex items-center justify-end pr-[16px] shrink-0 pt-[8px]">
+                          <span className="text-red-500 mr-1">*</span>
+                          <span className="text-[14px] text-[#4B5563]">
+                            等级排名生成范围 :
+                          </span>
+                          <div className="group relative ml-1 flex items-center mt-[-2px]">
+                            <Info
+                              size={14}
+                              className="text-[#15B8A6] cursor-help"
+                            />
+                            <RankScopeTooltip />
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2 pt-[8px]">
+                          <select
+                            value={rankScope}
+                            onChange={(e) => setRankScope(e.target.value)}
+                            className="w-[160px] h-[32px] px-[12px] border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6]"
+                          >
+                            <option value="all">全员</option>
+                            <option value="dept">部门</option>
+                            <option value="eval_group">考核组</option>
+                            <option value="custom">自定义分组</option>
+                          </select>
+                          {rankScope === "dept" && (
+                            <div className="flex flex-col gap-1">
+                              <select
+                                className="w-[160px] h-[32px] px-[12px] border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6]"
+                                defaultValue="default"
+                              >
+                                <option
+                                  value="default"
+                                  disabled
+                                  className="hidden"
+                                >
+                                  请选择部门层级
+                                </option>
+                                <option value="1">第一级</option>
+                                <option value="2">第二级</option>
+                                <option value="3">第三级</option>
+                              </select>
+                              <span className="text-[12px] text-[#9CA3AF]">
+                                自下往上（员工所在部门设为第一级）
+                              </span>
+                            </div>
+                          )}
+                          {rankScope === "custom" && (
+                            <span
+                              className="text-[#15B8A6] text-[14px] cursor-pointer hover:opacity-80 pt-[6px]"
+                              onClick={() => setShowCustomGroupModal(true)}
+                            >
+                              配置自定义分组
+                            </span>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-start gap-2 pt-[8px]">
-                        <select
-                          value={rankScope}
-                          onChange={(e) => setRankScope(e.target.value)}
-                          className="w-[160px] h-[32px] px-[12px] border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6]"
-                        >
-                          <option value="all">全员</option>
-                          <option value="dept">部门</option>
-                          <option value="eval_group">考核组</option>
-                          <option value="custom">自定义分组</option>
-                        </select>
-                        {rankScope === "dept" && (
-                          <div className="flex flex-col gap-1">
-                            <select
-                              className="w-[160px] h-[32px] px-[12px] border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6]"
-                              defaultValue="default"
-                            >
-                              <option
-                                value="default"
-                                disabled
-                                className="hidden"
-                              >
-                                请选择部门层级
-                              </option>
-                              <option value="1">第一级部门</option>
-                              <option value="2">第二级部门</option>
-                              <option value="3">第三级部门</option>
-                            </select>
-                            <span className="text-[12px] text-[#9CA3AF]">
-                              以员工所在的部门为第一级
-                            </span>
-                          </div>
-                        )}
-                        {rankScope === "custom" && (
-                          <span
-                            className="text-[#15B8A6] text-[14px] cursor-pointer hover:opacity-80 pt-[6px]"
-                            onClick={() => setShowCustomGroupModal(true)}
-                          >
-                            配置自定义分组
+
+                      <div className="flex">
+                        <div className="w-[120px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
+                          <span className="text-[14px] text-[#4B5563]">
+                            等级排名比例 :
                           </span>
-                        )}
+                        </div>
+                        <div className="flex-1 max-w-[760px] pt-[8px] flex flex-col gap-4">
+                          <div className="border border-neutral-200 rounded-[8px] overflow-hidden bg-white shadow-[1px_1px_4px_rgba(0,0,0,0.015)]">
+                            <div className="flex items-center justify-between px-4 py-2.5 bg-[#F9FAFB] border-b border-neutral-200">
+                              <span className="text-[13px] font-semibold text-[#4B5563]">
+                                等级排名比例与预计人数
+                              </span>
+                              {levelRuleType === "rank" && rankScope === "all" ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setTempRankRatios([...rankRatios]);
+                                    setTempSameScoreRule(sameScoreRule);
+                                    setTempRemainderRule(remainderRule);
+                                    setTempRemainderSpecificLevel(remainderSpecificLevel);
+                                    setIsBatchEditingRatios(true);
+                                  }}
+                                  className="text-[13px] text-[#15B8A6] hover:opacity-85 font-semibold cursor-pointer"
+                                >
+                                  调整排名比例
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setDrawerViewMode((levelRuleType === "rank" && rankScope !== "all") ? "group" : "config");
+                                    setShowBreakdownDrawer(true);
+                                  }}
+                                  className="flex items-center gap-1.5 text-[13px] text-[#15B8A6] hover:opacity-85 font-semibold cursor-pointer"
+                                >
+                                  <SlidersHorizontal size={13} />
+                                  更多配置与各组比例
+                                </button>
+                              )}
+                            </div>
+                            <table className="w-full text-left border-collapse">
+                              <thead>
+                                <tr className="bg-[#F9FAFB] border-b border-neutral-200 text-[12px] text-[#4B5563]">
+                                  <th className="py-2.5 px-4 font-semibold text-[#4B5563] w-[120px]">等级</th>
+                                  <th className="py-2.5 px-4 font-semibold text-[#4B5563] w-[280px]">
+                                    <div className="flex items-center gap-2">
+                                      <span>排名比例</span>
+                                      {levelRuleType === "rank" && (
+                                        rankScope === "all" ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setTempRankRatios([...rankRatios]);
+                                              setTempSameScoreRule(sameScoreRule);
+                                              setTempRemainderRule(remainderRule);
+                                              setTempRemainderSpecificLevel(remainderSpecificLevel);
+                                              setIsBatchEditingRatios(true);
+                                            }}
+                                            className="text-[#15B8A6] hover:text-[#0f9688] ml-2 flex items-center justify-center p-1 rounded hover:bg-teal-50 transition-colors cursor-pointer border border-transparent"
+                                            title="调整排名比例"
+                                          >
+                                            <Pencil size={12} className="text-[#15B8A6]" />
+                                          </button>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setTempRankRatios([...rankRatios]);
+                                              setTempSameScoreRule(sameScoreRule);
+                                              setTempRemainderRule(remainderRule);
+                                              setTempRemainderSpecificLevel(remainderSpecificLevel);
+                                              setIsBatchEditingRatios(true);
+                                            }}
+                                            className="text-[11px] text-[#15B8A6] hover:text-[#0f9688] font-semibold flex items-center gap-0.5 cursor-pointer border border-[#15B8A6]/20 bg-[#15B8A6]/5 hover:bg-[#15B8A6]/10 px-2 py-0.5 rounded transition-all font-sans shrink-0 ml-1.5"
+                                          >
+                                            <SlidersHorizontal size={11} />
+                                            调整排名比例
+                                          </button>
+                                        )
+                                      )}
+                                    </div>
+                                  </th>
+                                  {rankScope === "all" ? (
+                                    <th className="py-2.5 px-4 font-semibold text-[#4B5563]">预计占比人数 (全员100人)</th>
+                                  ) : (
+                                    <th className="py-2.5 px-4 font-semibold text-[#4B5563] text-right">
+                                      预计总人数 (各组之和)
+                                    </th>
+                                  )}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {rankRatios.map((ratio, index) => {
+                                  const pct = Math.max(0, ratio.max - ratio.min);
+                                  return (
+                                    <tr key={index} className="border-b border-neutral-200 last:border-b-0 hover:bg-[#F9FAFB]/50 text-[13px] text-[#1F2937]">
+                                      <td className="py-2.5 px-4 font-medium">{ratio.name}</td>
+                                      <td className="py-2.5 px-4">
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-[4px] text-xs font-semibold bg-[#15B8A6]/10 text-[#15B8A6]">
+                                          {ratio.min}% - {ratio.max}%
+                                        </span>
+                                      </td>
+                                      {rankScope === "all" ? (
+                                        <td className="py-2.5 px-4 font-semibold text-[#15B8A6]">
+                                          {Math.round((pct * 100) / 100)}人
+                                        </td>
+                                      ) : (
+                                        (() => {
+                                          const originalGroups = getActiveGroups();
+                                          const sumExpected = originalGroups.reduce((acc, g) => {
+                                            const gRatios = groupRatiosOverride[g.name] || rankRatios;
+                                            const matchRatio = gRatios.find(r => r.name === ratio.name) || ratio;
+                                            const pctForGroup = Math.max(0, matchRatio.max - matchRatio.min);
+                                            return acc + Math.round((pctForGroup * g.size) / 100);
+                                          }, 0);
+                                          return (
+                                            <td className="py-2.5 px-4 text-right">
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setSelectedRatioName(ratio.name);
+                                                  setDrawerViewMode("level");
+                                                  setShowBreakdownDrawer(true);
+                                                }}
+                                                className="inline-flex items-center gap-1.5 text-[#15B8A6] hover:opacity-85 font-semibold bg-teal-50/50 hover:bg-teal-50 px-2 py-1 rounded border border-[#15B8A6]/20 transition-all cursor-pointer font-sans"
+                                              >
+                                                <span>{sumExpected}人</span>
+                                                <span className="text-[11px] text-[#4B5563] font-normal flex items-center gap-0.5 border-l border-[#15B8A6]/20 pl-1.5 ml-1 select-none">
+                                                  各组明细
+                                                  <ChevronRight size={12} />
+                                                </span>
+                                              </button>
+                                            </td>
+                                          );
+                                        })()
+                                      )}
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+
+                            {/* Integrated compact rules status footer built into the table */}
+                            <div className="bg-[#F9FAFB] px-4 py-2.5 border-t border-neutral-200 flex flex-col sm:flex-row sm:items-center sm:justify-between text-[12px] text-[#4B5563] gap-2">
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                                <span className="flex items-center gap-1 font-sans">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#15B8A6] mt-[1px]"></span>
+                                  同分规则：<strong className="text-[#1F2937] font-semibold">{sameScoreRule === "allow_exceed" ? "占满当前等级" : "顺延至下一等级"}</strong>
+                                </span>
+                                <span className="flex items-center gap-1 font-sans">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#15B8A6] mt-[1px] ml-4"></span>
+                                  余数处理：<strong className="text-[#1F2937] font-semibold">{remainderRule === "next" ? "迁移到下一等级" : `迁移至指定等级 [${remainderSpecificLevel}]`}</strong>
+                                </span>
+                                {rankScope !== "all" && Object.keys(groupRatiosOverride).length > 0 && (
+                                  <span className="flex items-center gap-1 font-sans">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#15B8A6] mt-[1px]"></span>
+                                    独立比例: <strong className="text-amber-600 font-semibold">{Object.keys(groupRatiosOverride).length}组已设</strong>
+                                  </span>
+                                )}
+                              </div>
+                              {rankScope !== "all" && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setDrawerViewMode((levelRuleType === "rank" && rankScope !== "all") ? "group" : "config");
+                                    setShowBreakdownDrawer(true);
+                                  }}
+                                  className="text-[#15B8A6] hover:text-[#0f9688] font-semibold flex items-center gap-1 transition-colors cursor-pointer text-left self-start sm:self-auto font-sans"
+                                >
+                                  <SlidersHorizontal size={12} />
+                                  详细配置
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    </>
                   )}
                 </>
               )}
@@ -3275,14 +3601,34 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
 
           {/* 强制分布设置 */}
           <div>
-            <div className="flex items-center gap-2 mb-[24px]">
-              <div className="w-[4px] h-[16px] bg-[#15B8A6] rounded-[2px]"></div>
-              <h2 className="text-[16px] font-medium text-[#1F2937]">
-                强制分布控制
-              </h2>
+            <div className="flex items-center justify-between mb-[24px]">
+              <div className="flex items-center gap-2">
+                <div className="w-[4px] h-[16px] bg-[#15B8A6] rounded-[2px]"></div>
+                <h2 className="text-[16px] font-medium text-[#1F2937]">
+                  强制分布控制
+                </h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[14px] text-[#4B5563]">强制分布 :</span>
+                <button
+                  className={`w-10 h-5 rounded-full relative transition-colors ${isGlobalForcedDistEnabled ? "bg-[#15B8A6]" : "bg-[#E5E7EB]"}`}
+                  onClick={() => setIsGlobalForcedDistEnabled(!isGlobalForcedDistEnabled)}
+                  type="button"
+                >
+                  <div
+                    className={`w-4 h-4 bg-white rounded-full absolute top-[2px] transition-transform ${isGlobalForcedDistEnabled ? "translate-x-[22px]" : "translate-x-[2px]"}`}
+                  ></div>
+                </button>
+              </div>
             </div>
 
             <div className="pl-[12px]">
+              {!isGlobalForcedDistEnabled ? (
+                <div className="p-[24px] bg-white rounded-[8px] border border-[#E5E7EB] text-center text-[#4B5563] text-[14px]">
+                  开启后可设置等级分布控制。
+                </div>
+              ) : (
+                <>
               {/* 节点 Tabs */}
               <div className="flex border-b border-[#E5E7EB] mb-[24px]">
                 {nodes.map((node) => {
@@ -3418,13 +3764,13 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                   onChange={(e) => updateActiveNode({ deptLevel: e.target.value })}
                                   className="w-[140px] h-[32px] px-[12px] border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6] bg-white text-[#4B5563]"
                                 >
-                                  <option value="1">第一级部门</option>
+                                  <option value="1">第一级</option>
                                   <option value="last">最末级</option>
-                                  <option value="2">第二级部门</option>
-                                  <option value="3">第三级部门</option>
+                                  <option value="2">第二级</option>
+                                  <option value="3">第三级</option>
                                 </select>
                                 <span className="text-[12px] text-[#9CA3AF]">
-                                  以员工所在的部门为第一级
+                                  自下往上（员工所在部门设为第一级）
                                 </span>
                               </div>
                             </div>
@@ -3545,11 +3891,15 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                 </span>
                               </div>
                               <div className="flex-1 max-w-[320px]">
-                                <select className="w-full h-[32px] px-[12px] border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6] bg-white">
-                                  <option>
-                                    默认选项为考核方案配置的强制分布规则带入
-                                  </option>
-                                </select>
+                                <CustomSelect
+                                  options={simForcedRules}
+                                  value={selectedSimForcedRule}
+                                  onChange={setSelectedSimForcedRule}
+                                  placeholder="请选择"
+                                  className="w-full"
+                                  onCreate={() => setShowCreateForcedRuleSimModal(true)}
+                                  createLabel="+ 快捷创建强制分布规则"
+                                />
                               </div>
                             </div>
 
@@ -3651,11 +4001,15 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                 强制分布规则 :
                               </span>
                             </div>
-                            <select className="w-[320px] h-[32px] px-[12px] border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6] bg-white">
-                              <option>
-                                默认选项为考核方案配置的强制分布规则带入
-                              </option>
-                            </select>
+                            <CustomSelect
+                              options={simForcedRules}
+                              value={selectedSimForcedRule}
+                              onChange={setSelectedSimForcedRule}
+                              placeholder="请选择"
+                              className="w-[320px]"
+                              onCreate={() => setShowCreateForcedRuleSimModal(true)}
+                              createLabel="+ 快捷创建强制分布规则"
+                            />
                           </div>
 
                           <div className="flex items-center">
@@ -3742,8 +4096,10 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                   </div>
                 )}
               </div>
-            </div>
-          </div>
+            </>
+          )}
+        </div>
+      </div>
         </div>
       </div>
       {showRankScopeModal && (
@@ -3767,6 +4123,1350 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
               }));
             }
             setShowCustomGroupModal(false);
+          }}
+        />
+      )}
+      {editingGroupRatios && (
+        <div className="fixed inset-0 bg-black/50 z-[120] flex items-center justify-center">
+          <div className="bg-white rounded-[8px] w-[620px] shadow-2xl flex flex-col p-6 animate-scale-in max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 mb-5 border-b border-neutral-100">
+              <h3 className="text-[16px] font-semibold text-[#1F2937]">调整排名比例 — {editingGroupRatios.groupName}</h3>
+              <button
+                onClick={() => setEditingGroupRatios(null)}
+                className="text-[#9CA3AF] hover:text-[#4B5563] transition-colors cursor-pointer"
+                type="button"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-4 font-sans">
+              {/* Rules selectors matching Figure 2 exactly */}
+              <div className="flex items-center gap-2">
+                <div className="w-[140px] text-right text-[13px] text-[#4B5563]">
+                  <span className="text-red-500 mr-1">*</span>同分超人数规则：
+                </div>
+                <div className="flex-1">
+                  <select
+                    value={tempGroupSameScoreRule}
+                    onChange={(e) => setTempGroupSameScoreRule(e.target.value)}
+                    className="w-full max-w-[320px] h-[32px] px-[12px] border border-neutral-200 rounded-[4px] text-[13px] bg-white text-[#1F2937] focus:outline-none focus:border-[#15B8A6] cursor-pointer"
+                  >
+                    <option value="allow_exceed">占满当前等级</option>
+                    <option value="push_to_next">顺延至下一等级</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="w-[140px] text-right text-[13px] text-[#4B5563]">
+                  <span className="text-red-500 mr-1">*</span>余数处理：
+                </div>
+                <div className="flex-1">
+                  <select
+                    value={tempGroupRemainderRule}
+                    onChange={(e) => setTempGroupRemainderRule(e.target.value)}
+                    className="w-full max-w-[320px] h-[32px] px-[12px] border border-neutral-200 rounded-[4px] text-[13px] bg-white text-[#1F2937] focus:outline-none focus:border-[#15B8A6] cursor-pointer"
+                  >
+                    <option value="next">迁移到下一等级</option>
+                    <option value="specific">迁移到指定等级</option>
+                  </select>
+                </div>
+              </div>
+
+              {tempGroupRemainderRule === "specific" && (
+                <div className="flex items-center gap-2">
+                  <div className="w-[140px] text-right text-[13px] text-[#4B5563]">
+                    指定归属等级：
+                  </div>
+                  <div className="flex-1">
+                    <select
+                      value={tempGroupRemainderSpecificLevel}
+                      onChange={(e) => setTempGroupRemainderSpecificLevel(e.target.value)}
+                      className="w-full max-w-[320px] h-[32px] px-[10px] border border-neutral-200 rounded-[4px] text-[13px] bg-white text-[#1F2937] focus:outline-none focus:border-[#15B8A6] cursor-pointer"
+                    >
+                      {editingGroupRatios.ratios.map((r, i) => (
+                        <option key={i} value={r.name}>
+                          {r.name} 等级
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Grid-based table listing levels matching Figure 2 */}
+              <div className="mt-4">
+                <table className="w-full text-center border-collapse border border-neutral-200">
+                  <thead>
+                    <tr className="bg-neutral-50 text-[12px] text-[#4B5563] font-medium border-b border-neutral-200">
+                      <th className="py-2.5 px-4 border-r border-neutral-200 w-[120px]">等级名称</th>
+                      <th className="py-2.5 px-4 border-r border-neutral-200">排名比例</th>
+                      <th className="py-2.5 px-4 w-[150px]">预计人数</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {editingGroupRatios.ratios.map((ratio, index) => {
+                      const isLast = index === editingGroupRatios.ratios.length - 1;
+                      const pct = Math.max(0, (isLast ? 100 : ratio.max) - ratio.min);
+                      const groupObj = getActiveGroups().find(g => g.name === editingGroupRatios.groupName);
+                      const gSize = groupObj ? groupObj.size : 20;
+                      const expectedCount = Math.round((pct * gSize) / 100);
+
+                      return (
+                        <tr key={index} className="border-b border-neutral-200 last:border-b-0 text-[13px] text-[#1F2937]">
+                          <td className="py-2.5 px-4 border-r border-neutral-200 bg-white font-medium">
+                            {ratio.name}
+                          </td>
+                          <td className="py-2 px-4 border-r border-neutral-200 bg-white">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <div className="relative w-[110px]">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={ratio.min}
+                                  onChange={(e) => {
+                                    const val = Math.min(100, Math.max(0, Number(e.target.value)));
+                                    const updated = editingGroupRatios.ratios.map((r, i) =>
+                                      i === index ? { ...r, min: val } : r
+                                    );
+                                    setEditingGroupRatios({ ...editingGroupRatios, ratios: updated });
+                                  }}
+                                  placeholder="请输入比例"
+                                  className="w-full h-[32px] pl-2 pr-[16px] border border-neutral-200 rounded-[4px] text-center text-[13px] focus:outline-none focus:border-[#15B8A6]"
+                                />
+                                <span className="absolute right-1.5 top-1.5 text-[11px] text-[#9CA3AF] pointer-events-none">%</span>
+                              </div>
+                              <span className="text-neutral-400 font-sans">~</span>
+                              <div className="relative w-[110px]">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={isLast ? 100 : ratio.max}
+                                  disabled={isLast}
+                                  onChange={(e) => {
+                                    const val = Math.min(100, Math.max(0, Number(e.target.value)));
+                                    const updated = editingGroupRatios.ratios.map((r, i) =>
+                                      i === index ? { ...r, max: val } : r
+                                    );
+                                    setEditingGroupRatios({ ...editingGroupRatios, ratios: updated });
+                                  }}
+                                  placeholder="请输入比例"
+                                  className={`w-full h-[32px] pl-2 pr-[16px] border border-neutral-200 rounded-[4px] text-center text-[13px] focus:outline-none focus:border-[#15B8A6] ${isLast ? "bg-neutral-50 text-neutral-400 cursor-not-allowed" : ""}`}
+                                />
+                                <span className="absolute right-1.5 top-1.5 text-[11px] text-[#9CA3AF] pointer-events-none">%</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-2 px-4 bg-white font-medium text-neutral-600">
+                            {expectedCount}人
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-neutral-100">
+              {groupRatiosOverride[editingGroupRatios.groupName] ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updatedOverrides = { ...groupRatiosOverride };
+                    delete updatedOverrides[editingGroupRatios.groupName];
+                    setGroupRatiosOverride(updatedOverrides);
+
+                    const updatedSame = { ...groupSameScoreRule };
+                    delete updatedSame[editingGroupRatios.groupName];
+                    setGroupSameScoreRule(updatedSame);
+
+                    const updatedRem = { ...groupRemainderRule };
+                    delete updatedRem[editingGroupRatios.groupName];
+                    setGroupRemainderRule(updatedRem);
+
+                    const updatedSpec = { ...groupRemainderSpecificLevel };
+                    delete updatedSpec[editingGroupRatios.groupName];
+                    setGroupRemainderSpecificLevel(updatedSpec);
+
+                    setEditingGroupRatios(null);
+                  }}
+                  className="text-red-500 hover:text-red-600 text-[13px] font-medium flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <Trash2 size={13} />
+                  清除重置，共享统一比例
+                </button>
+              ) : (
+                <div className="text-[12px] text-[#9CA3AF] select-none flex items-center gap-1 font-sans">
+                  <Info size={12} className="text-[#15B8A6]" />
+                  当前正共享统一比例
+                </div>
+              )}
+
+              <div className="flex items-center gap-6">
+                <button
+                  type="button"
+                  onClick={() => setEditingGroupRatios(null)}
+                  className="text-[#15B8A6] hover:opacity-80 text-[14px] font-medium transition-colors cursor-pointer border border-transparent"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGroupRatiosOverride(prev => ({
+                      ...prev,
+                      [editingGroupRatios.groupName]: editingGroupRatios.ratios
+                    }));
+                    setGroupSameScoreRule(prev => ({
+                      ...prev,
+                      [editingGroupRatios.groupName]: tempGroupSameScoreRule
+                    }));
+                    setGroupRemainderRule(prev => ({
+                      ...prev,
+                      [editingGroupRatios.groupName]: tempGroupRemainderRule
+                    }));
+                    setGroupRemainderSpecificLevel(prev => ({
+                      ...prev,
+                      [editingGroupRatios.groupName]: tempGroupRemainderSpecificLevel
+                    }));
+                    setEditingGroupRatios(null);
+                  }}
+                  className="px-[16px] h-[32px] bg-[#15B8A6] hover:bg-[#12a191] rounded-[4px] text-[14px] text-white font-medium transition-colors cursor-pointer"
+                >
+                  确认修改
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {isBatchEditingRatios && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center">
+          <div className="bg-white rounded-[8px] w-[620px] shadow-lg flex flex-col p-6 animate-scale-in max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 mb-5 border-b border-neutral-100">
+              <h3 className="text-[16px] font-semibold text-[#1F2937]">调整排名比例</h3>
+              <button
+                onClick={() => setIsBatchEditingRatios(false)}
+                className="text-[#9CA3AF] hover:text-[#4B5563] transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-4 font-sans">
+              {/* Rules selectors matching Figure 2 exactly */}
+              <div className="flex items-center gap-2">
+                <div className="w-[140px] text-right text-[13px] text-[#4B5563]">
+                  <span className="text-red-500 mr-1">*</span>同分超人数规则：
+                </div>
+                <div className="flex-1">
+                  <select
+                    value={tempSameScoreRule}
+                    onChange={(e) => setTempSameScoreRule(e.target.value)}
+                    className="w-full max-w-[320px] h-[32px] px-[12px] border border-neutral-200 rounded-[4px] text-[13px] bg-white text-[#1F2937] focus:outline-none focus:border-[#15B8A6] cursor-pointer"
+                  >
+                    <option value="allow_exceed">占满当前等级</option>
+                    <option value="push_to_next">顺延至下一等级</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="w-[140px] text-right text-[13px] text-[#4B5563]">
+                  <span className="text-red-500 mr-1">*</span>余数处理：
+                </div>
+                <div className="flex-1">
+                  <select
+                    value={tempRemainderRule}
+                    onChange={(e) => setTempRemainderRule(e.target.value)}
+                    className="w-full max-w-[320px] h-[32px] px-[12px] border border-neutral-200 rounded-[4px] text-[13px] bg-white text-[#1F2937] focus:outline-none focus:border-[#15B8A6] cursor-pointer"
+                  >
+                    <option value="next">迁移到下一等级</option>
+                    <option value="specific">迁移到指定等级</option>
+                  </select>
+                </div>
+              </div>
+
+              {tempRemainderRule === "specific" && (
+                <div className="flex items-center gap-2">
+                  <div className="w-[140px] text-right text-[13px] text-[#4B5563]">
+                    指定归属等级：
+                  </div>
+                  <div className="flex-1">
+                    <select
+                      value={tempRemainderSpecificLevel}
+                      onChange={(e) => setTempRemainderSpecificLevel(e.target.value)}
+                      className="w-full max-w-[320px] h-[32px] px-[10px] border border-neutral-200 rounded-[4px] text-[13px] bg-white text-[#1F2937] focus:outline-none focus:border-[#15B8A6] cursor-pointer"
+                    >
+                      {tempRankRatios.map((r, i) => (
+                        <option key={i} value={r.name}>
+                          {r.name} 等级
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Grid-based table listing levels matching Figure 2 */}
+              <div className="mt-4">
+                <table className="w-full text-center border-collapse border border-neutral-200">
+                  <thead>
+                    <tr className="bg-neutral-50 text-[12px] text-[#4B5563] font-medium border-b border-neutral-200">
+                      <th className="py-2.5 px-4 border-r border-neutral-200 w-[120px]">等级名称</th>
+                      <th className="py-2.5 px-4 border-r border-neutral-200">排名比例</th>
+                      <th className="py-2.5 px-4 w-[150px]">预计人数</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tempRankRatios.map((ratio, index) => {
+                      const isLast = index === tempRankRatios.length - 1;
+                      const pct = Math.max(0, (isLast ? 100 : ratio.max) - ratio.min);
+                      const expectedCount = Math.round((pct * 100) / 100);
+
+                      return (
+                        <tr key={index} className="border-b border-neutral-200 last:border-b-0 text-[13px] text-[#1F2937]">
+                          <td className="py-2.5 px-4 border-r border-neutral-200 bg-white font-medium">
+                            {ratio.name}
+                          </td>
+                          <td className="py-2 px-4 border-r border-neutral-200 bg-white">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <div className="relative w-[110px]">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={ratio.min}
+                                  onChange={(e) => {
+                                    const val = Math.min(100, Math.max(0, Number(e.target.value)));
+                                    setTempRankRatios(tempRankRatios.map((r, i) => i === index ? { ...r, min: val } : r));
+                                  }}
+                                  placeholder="请输入比例"
+                                  className="w-full h-[32px] pl-2 pr-[16px] border border-neutral-200 rounded-[4px] text-center text-[13px] focus:outline-none focus:border-[#15B8A6]"
+                                />
+                                <span className="absolute right-1.5 top-1.5 text-[11px] text-[#9CA3AF] pointer-events-none">%</span>
+                              </div>
+                              <span className="text-neutral-400 font-sans">~</span>
+                              <div className="relative w-[110px]">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={isLast ? 100 : ratio.max}
+                                  disabled={isLast}
+                                  onChange={(e) => {
+                                    const val = Math.min(100, Math.max(0, Number(e.target.value)));
+                                    setTempRankRatios(tempRankRatios.map((r, i) => i === index ? { ...r, max: val } : r));
+                                  }}
+                                  placeholder="请输入比例"
+                                  className={`w-full h-[32px] pl-2 pr-[16px] border border-neutral-200 rounded-[4px] text-center text-[13px] focus:outline-none focus:border-[#15B8A6] ${isLast ? "bg-neutral-50 text-neutral-400 cursor-not-allowed" : ""}`}
+                                />
+                                <span className="absolute right-1.5 top-1.5 text-[11px] text-[#9CA3AF] pointer-events-none">%</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-2 px-4 bg-white font-medium text-neutral-600">
+                            {expectedCount}人
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="flex items-center justify-end gap-6 mt-6 pt-4 border-t border-neutral-100">
+              <button
+                type="button"
+                onClick={() => setIsBatchEditingRatios(false)}
+                className="text-[#15B8A6] hover:opacity-80 text-[14px] font-medium transition-colors cursor-pointer border border-transparent"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRankRatios(tempRankRatios);
+                  setSameScoreRule(tempSameScoreRule);
+                  setRemainderRule(tempRemainderRule);
+                  setRemainderSpecificLevel(tempRemainderSpecificLevel);
+                  setIsBatchEditingRatios(false);
+                }}
+                className="px-[16px] h-[32px] bg-[#15B8A6] hover:bg-[#12a191] rounded-[4px] text-[14px] text-white font-medium transition-colors cursor-pointer"
+              >
+                确认修改
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 每个等级在各绩效组的预计人数明细抽屉 */}
+      {showBreakdownDrawer && (
+        <div 
+          className="fixed inset-0 bg-black/40 z-[100] flex justify-end transition-opacity cursor-pointer"
+          onClick={() => setShowBreakdownDrawer(false)}
+        >
+          <div 
+            className="bg-[#F9FAFB] w-[960px] h-full shadow-2xl flex flex-col transform transition-transform cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Drawer Header */}
+            <div className="h-[48px] bg-white border-b border-neutral-200 flex items-center justify-between px-4 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="w-[3px] h-[14px] bg-[#15B8A6] rounded-[1px]"></span>
+                <h3 className="text-[14px] font-semibold text-[#1F2937]">
+                  各等级绩效组预计人数明细
+                </h3>
+                <span className="text-[11px] bg-neutral-100 text-[#6B7280] px-2 py-0.5 rounded-[4px] border border-neutral-200">
+                  {rankScope === "dept" ? "按部门" : rankScope === "eval_group" ? "按考核组" : "自定义分组"}
+                </span>
+              </div>
+              <button
+                onClick={() => setShowBreakdownDrawer(false)}
+                className="text-[#9CA3AF] hover:text-[#4B5563] transition-colors cursor-pointer"
+                type="button"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Subheader: Mode selections & Search */}
+            <div className="bg-white p-4 border-b border-neutral-200 flex flex-col gap-3 shrink-0">
+              {/* Perspective Switch */}
+              {!(levelRuleType === "rank" && rankScope !== "all") && (
+                <div className="flex bg-neutral-100 p-0.5 rounded-[6px] border border-neutral-200">
+                  <button
+                    type="button"
+                    onClick={() => setDrawerViewMode("level")}
+                    className={`flex-1 py-1 text-[11px] font-medium rounded-[4px] transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      drawerViewMode === "level"
+                        ? "bg-white text-[#15B8A6] shadow-sm font-semibold"
+                        : "text-[#4B5563] hover:text-[#1F2937]"
+                    }`}
+                  >
+                    <Layers size={12} />
+                    等级人数明细
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDrawerViewMode("group")}
+                    className={`flex-1 py-1 text-[11px] font-medium rounded-[4px] transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      drawerViewMode === "group"
+                        ? "bg-white text-[#15B8A6] shadow-sm font-semibold"
+                        : "text-[#4B5563] hover:text-[#1F2937]"
+                    }`}
+                  >
+                    <Users size={12} />
+                    绩效组分布
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDrawerViewMode("config")}
+                    className={`flex-1 py-1 text-[11px] font-medium rounded-[4px] transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      drawerViewMode === "config"
+                        ? "bg-white text-[#15B8A6] shadow-sm font-semibold"
+                        : "text-[#4B5563] hover:text-[#1F2937]"
+                    }`}
+                  >
+                    <SlidersHorizontal size={12} />
+                    详细配置与比例
+                  </button>
+                </div>
+              )}
+
+              {/* Level Tab Switches (Only shown in Level View mode) */}
+              {drawerViewMode === "level" && !(levelRuleType === "rank" && rankScope !== "all") && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] text-[#4B5563] font-medium">查看等级:</span>
+                  <div className="flex bg-neutral-100 p-0.5 rounded-[6px] gap-0.5 border border-neutral-200">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRatioName(null)}
+                      className={`px-2.5 py-1 text-[11px] font-medium rounded-[4px] transition-all cursor-pointer ${
+                        selectedRatioName === null
+                          ? "bg-white text-[#15B8A6] shadow-sm font-semibold"
+                          : "text-[#4B5563] hover:text-[#1F2937]"
+                      }`}
+                    >
+                      全部等级
+                    </button>
+                    {rankRatios.map((ratio) => (
+                      <button
+                        key={ratio.name}
+                        type="button"
+                        onClick={() => setSelectedRatioName(ratio.name)}
+                        className={`px-2.5 py-1 text-[11px] font-medium rounded-[4px] transition-all cursor-pointer ${
+                          selectedRatioName === ratio.name
+                            ? "bg-white text-[#15B8A6] shadow-sm font-semibold"
+                            : "text-[#4B5563] hover:text-[#1F2937]"
+                        }`}
+                      >
+                        {ratio.name}等 ({ratio.max - ratio.min}%)
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Search Group */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="搜索部门 / 团队 / 绩效组名称..."
+                  value={drawerSearchQuery}
+                  onChange={(e) => setDrawerSearchQuery(e.target.value)}
+                  className="w-full h-[32px] pl-[32px] pr-8 border border-neutral-200 rounded-[4px] text-[12px] bg-white focus:outline-none focus:border-[#15B8A6] placeholder-[#9CA3AF]"
+                />
+                <Search size={13} className="absolute left-2.5 top-[9.5px] text-[#9CA3AF]" />
+                {drawerSearchQuery && (
+                  <button
+                    onClick={() => setDrawerSearchQuery("")}
+                    className="absolute right-2.5 top-[8px] text-[#9CA3AF] hover:text-[#4B5563]"
+                    type="button"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* List / Table Area */}
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+              {(() => {
+                const groups = getActiveGroups().filter(g => 
+                  g.name.toLowerCase().includes(drawerSearchQuery.toLowerCase())
+                );
+
+                if (levelRuleType === "rank" && rankScope !== "all") {
+                  return (
+                    <div className="flex flex-col gap-3 animate-fadeIn">
+                      <div className="bg-white rounded-[8px] border border-neutral-200 overflow-hidden shadow-[1px_1px_4px_4px_rgba(83,84,85,0.02)] p-4">
+                        <div className="overflow-x-auto w-full">
+                          <table className="w-full text-left border-collapse text-[12px] min-w-[850px]">
+                            <thead>
+                              <tr className="bg-[#F9FAFB] border-b border-neutral-200 font-semibold text-[#4B5563]">
+                                <th className="py-2.5 px-3 sticky left-0 bg-[#F9FAFB] z-[3] shadow-[2px_0_5px_rgba(83,84,85,0.03)] min-w-[150px] border-r border-neutral-150">
+                                  绩效组别 / 部门
+                                </th>
+                                {rankRatios.map((ratio) => (
+                                  <th key={ratio.name} className="py-2.5 px-3 text-right w-[100px] text-[#15B8A6]">
+                                    {ratio.name}等 ({ratio.max - ratio.min}%)
+                                  </th>
+                                ))}
+                                <th className="py-2.5 px-3 text-center w-[90px] border-l border-neutral-100 bg-[#F9FAFB]">
+                                  总人数
+                                </th>
+                                <th className="py-2.5 px-3 text-center w-[230px] text-[#4B5563]">
+                                  操作
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {groups.map((g, idx) => {
+                                const ratiosForGroup = groupRatiosOverride[g.name] || rankRatios;
+                                const isOverridden = !!groupRatiosOverride[g.name];
+                                const isDifferent = isOverridden && (
+                                  groupRatiosOverride[g.name].length !== rankRatios.length ||
+                                  groupRatiosOverride[g.name].some((ratio, j) => {
+                                    const defaultRatio = rankRatios[j];
+                                    return !defaultRatio || ratio.min !== defaultRatio.min || ratio.max !== defaultRatio.max || ratio.name !== defaultRatio.name;
+                                  })
+                                );
+
+                                return (
+                                  <tr key={idx} className="border-b border-neutral-100 last:border-b-0 text-[#1F2937] hover:bg-neutral-50/50">
+                                    <td className="py-2.5 px-3 font-medium text-[#1F2937] sticky left-0 bg-white z-[2] shadow-[2px_0_5px_rgba(83,84,85,0.04)] border-r border-neutral-150">
+                                      <div className="flex items-center gap-1.5 truncate max-w-[215px]">
+                                        <span className="w-1 h-3 bg-[#15B8A6]/60 rounded-sm inline-block"></span>
+                                        <span className="truncate" title={g.name}>{g.name}</span>
+                                        {isDifferent && (
+                                          <span className="text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.2 rounded border border-amber-250 font-bold select-none shrink-0 scale-90">
+                                            专
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    {rankRatios.map((ratio) => {
+                                      const matchRatio = ratiosForGroup.find(r => r.name === ratio.name) || ratio;
+                                      const pct = Math.max(0, matchRatio.max - matchRatio.min);
+                                      const expected = Math.round((pct * g.size) / 100);
+                                      return (
+                                        <td key={ratio.name} className="py-2.5 px-3 text-right font-semibold text-[#15B8A6]">
+                                          <span>{expected}人</span>
+                                          {isDifferent && (
+                                            <span className="block text-[9px] font-normal text-amber-500 scale-90 text-right pr-0.5">
+                                              ({pct}%)
+                                            </span>
+                                          )}
+                                        </td>
+                                      );
+                                    })}
+                                    <td className="py-2.5 px-3 text-center text-[#6B7280] font-medium border-l border-neutral-100">
+                                      {g.size}人
+                                    </td>
+                                    <td className="py-2.5 px-3">
+                                      <div className="flex flex-col gap-1 items-center justify-center">
+                                        <div className="flex items-center gap-1.5 justify-center">
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setEditingGroupRatios({ 
+                                                groupName: g.name, 
+                                                ratios: ratiosForGroup.map(r => ({ ...r })) 
+                                              });
+                                              setTempGroupSameScoreRule(groupSameScoreRule[g.name] || sameScoreRule);
+                                              setTempGroupRemainderRule(groupRemainderRule[g.name] || remainderRule);
+                                              setTempGroupRemainderSpecificLevel(groupRemainderSpecificLevel[g.name] || remainderSpecificLevel);
+                                            }}
+                                            className="text-[11px] text-[#15B8A6] hover:text-[#0f9688] font-semibold flex items-center gap-0.5 cursor-pointer bg-[#15B8A6]/5 hover:bg-[#15B8A6]/10 px-2 py-1 rounded transition-colors"
+                                          >
+                                            <SlidersHorizontal size={10} />
+                                            调整比例
+                                          </button>
+                                          {isDifferent && (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const updated = { ...groupRatiosOverride };
+                                                delete updated[g.name];
+                                                setGroupRatiosOverride(updated);
+                                              }}
+                                              className="text-[11px] text-[#EF4444] hover:text-[#dc2626] font-semibold flex items-center cursor-pointer bg-red-50 hover:bg-red-100/50 px-2 py-1 rounded transition-colors"
+                                            >
+                                              恢复通用比例
+                                            </button>
+                                          )}
+                                        </div>
+                                        {isDifferent && (
+                                          <div className="text-[10px] text-amber-600 font-medium bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100/70 select-none scale-95 origin-center text-center max-w-[210px] truncate" title={ratiosForGroup.map(r => `${r.name}:${r.max - r.min}%`).join('/')}>
+                                            已设: {ratiosForGroup.map(r => `${r.name}:${r.max - r.min}%`).join(' / ')}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Info / instructions panel */}
+                      <div className="bg-teal-50/40 rounded-[8px] border border-[#15B8A6]/10 p-[16px] text-[11px] text-[#4B5563] flex flex-col gap-2 shadow-[1px_1px_4px_4px_rgba(83,84,85,0.02)] bg-white">
+                        <div className="font-semibold text-teal-850 flex items-center gap-1">
+                          <Info size={13} className="text-[#15B8A6]" />
+                          <span>关于多绩效考核组计算规则与比例个性化调整</span>
+                        </div>
+                        <p>
+                          1. <strong>精准计算：</strong>各个独立绩效考核组都会分别采取分配比例。预计人数 = 各考核绩效组总人数 × 对应等级的排名比例百分比（计算结果经过四舍五入）。
+                        </p>
+                        <p>
+                          2. <strong>个性化调整比例：</strong>点击列表行尾的「调整比例」按钮，可按部门/绩效组单独配置排名规则与级距比例。保存后，表格行数据与对应人数将实时重算回显。
+                        </p>
+                        <p>
+                          3. <strong>跨组累计：</strong>本页面表格显示的预计总人数是各考核组计算舍入并生效个性化比例后结果的累加值。
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // CASE 0: CONFIG VIEW PERSPECTIVE
+                if (drawerViewMode === "config") {
+                  return (
+                    <div className="flex flex-col gap-4">
+                      {/* Global Default Config Block */}
+                      <div className="bg-white border border-neutral-200 rounded-[8px] p-[16px] shadow-[1px_1px_4px_rgba(0,0,0,0.015)] flex flex-col gap-3">
+                        <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
+                          <span className="text-[13px] font-bold text-[#1F2937] flex items-center gap-1.5 font-sans">
+                            <span className="w-1.5 h-3 bg-[#15B8A6] rounded-sm"></span>
+                            全局默认等级比例
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTempRankRatios([...rankRatios]);
+                              setTempSameScoreRule(sameScoreRule);
+                              setTempRemainderRule(remainderRule);
+                              setTempRemainderSpecificLevel(remainderSpecificLevel);
+                              setIsBatchEditingRatios(true);
+                            }}
+                            className="text-[12px] text-[#15B8A6] hover:opacity-85 font-semibold flex items-center gap-1 cursor-pointer font-sans"
+                          >
+                            <SlidersHorizontal size={12} />
+                            批量调整全局规则
+                          </button>
+                        </div>
+
+                        {/* Interactive layout of rankRatios */}
+                        <div className="grid grid-cols-2 gap-2">
+                          {rankRatios.map((ratio, rIdx) => {
+                            const pct = Math.max(0, ratio.max - ratio.min);
+                            return (
+                              <div key={rIdx} className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[4px] p-2 flex items-center justify-between">
+                                <span className="text-[12px] font-semibold text-[#374151]">{ratio.name}等</span>
+                                <span className="text-[12px] font-bold text-[#15B8A6]">{ratio.min}% - {ratio.max}% ({pct}%)</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Tie and remainder rules dashboard inside the drawer */}
+                      <div className="bg-white border border-neutral-200 rounded-[8px] p-[16px] shadow-[1px_1px_4px_rgba(0,0,0,0.015)] flex flex-col gap-3">
+                        <div className="border-b border-neutral-100 pb-2">
+                          <span className="text-[13px] font-bold text-[#1F2937] flex items-center gap-1.5 font-sans">
+                            <span className="w-1.5 h-3 bg-[#15B8A6] rounded-sm"></span>
+                            舍入与同分规则配置
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col gap-3">
+                          {/* sameScoreRule Selector */}
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[11px] text-[#6B7280] font-medium font-sans">同分（超人数）处理规则 :</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setSameScoreRule("allow_exceed")}
+                                className={`h-[32px] rounded-[4px] text-[12px] border font-medium flex items-center justify-center transition-all cursor-pointer font-sans ${
+                                  sameScoreRule === "allow_exceed"
+                                    ? "bg-[#15B8A6]/5 border-[#15B8A6] text-[#15B8A6] font-bold"
+                                    : "border-[#E5E7EB] text-[#4B5563] bg-white hover:bg-neutral-50"
+                                }`}
+                              >
+                                占满当前等级 (不顺延)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSameScoreRule("push_to_next")}
+                                className={`h-[32px] rounded-[4px] text-[12px] border font-medium flex items-center justify-center transition-all cursor-pointer font-sans ${
+                                  sameScoreRule === "push_to_next"
+                                    ? "bg-[#15B8A6]/5 border-[#15B8A6] text-[#15B8A6] font-bold"
+                                    : "border-[#E5E7EB] text-[#4B5563] bg-white hover:bg-neutral-50"
+                                }`}
+                              >
+                                顺延至下一等级
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* remainderRule Selector */}
+                          <div className="flex flex-col gap-1.5 pt-1">
+                            <label className="text-[11px] text-[#6B7280] font-medium font-sans">舍入余缺人数分配规则 :</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setRemainderRule("next")}
+                                className={`h-[32px] rounded-[4px] text-[12px] border font-medium flex items-center justify-center transition-all cursor-pointer font-sans ${
+                                  remainderRule === "next"
+                                    ? "bg-[#15B8A6]/5 border-[#15B8A6] text-[#15B8A6] font-bold"
+                                    : "border-[#E5E7EB] text-[#4B5563] bg-white hover:bg-neutral-50"
+                                }`}
+                              >
+                                顺序合并到下一等级
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setRemainderRule("specific")}
+                                className={`h-[32px] rounded-[4px] text-[12px] border font-medium flex items-center justify-center transition-all cursor-pointer font-sans relative ${
+                                  remainderRule === "specific"
+                                    ? "bg-[#15B8A6]/5 border-[#15B8A6] text-[#15B8A6] font-bold"
+                                    : "border-[#E5E7EB] text-[#4B5563] bg-white hover:bg-neutral-50"
+                                }`}
+                              >
+                                统一并入指定等级
+                              </button>
+                            </div>
+                          </div>
+
+                          {remainderRule === "specific" && (
+                            <div className="mt-1 flex items-center gap-2 bg-[#F9FAFB] p-2 rounded border border-[#E5E7EB] animate-fadeIn">
+                              <span className="text-[11px] text-[#6B7280] font-sans">合并到指定等级:</span>
+                              <select
+                                value={remainderSpecificLevel}
+                                onChange={(e) => setRemainderSpecificLevel(e.target.value)}
+                                className="h-[24px] px-2 text-[12px] border border-neutral-200 rounded text-[#1F2937] bg-white focus:outline-none focus:border-[#15B8A6] font-sans"
+                              >
+                                {rankRatios.map((r) => (
+                                  <option key={r.name} value={r.name}>{r.name}等</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // CASE 1: GROUP VIEW PERSPECTIVE
+                if (drawerViewMode === "group") {
+                  return (
+                    <div className="flex flex-col gap-3 animate-fadeIn">
+                      {/* Collapsible Global Configuration Block */}
+                      {levelRuleType === "rank" && rankScope !== "all" && (
+                        <div className="bg-white border border-neutral-200 rounded-[8px] p-3 shadow-[1px_1px_4px_rgba(0,0,0,0.015)] flex flex-col gap-2">
+                          <div 
+                            className="flex justify-between items-center cursor-pointer select-none" 
+                            onClick={() => setShowGlobalPanel(!showGlobalPanel)}
+                          >
+                            <span className="text-[12px] font-bold text-[#1F2937] flex items-center gap-1.5 font-sans">
+                              <SlidersHorizontal size={13} className="text-[#15B8A6]" />
+                              全局统一默认规则与模型
+                            </span>
+                            <span className="text-[11.5px] text-[#15B8A6] flex items-center gap-0.5">
+                              {showGlobalPanel ? "收起规则设置" : "展开规则设置"}
+                              <ChevronDown size={13} className={`transform transition-transform ${showGlobalPanel ? "rotate-180" : ""}`} />
+                            </span>
+                          </div>
+                          {showGlobalPanel && (
+                            <div className="flex flex-col gap-3 pt-2.5 border-t border-neutral-100 animate-fadeIn">
+                              {/* Global Default Ratios */}
+                              <div className="flex flex-col gap-1.5">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[11px] text-[#6B7280]">全局默认等级比例 (按此比例分配未设独立比例的考核组):</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setTempRankRatios([...rankRatios]);
+                                      setTempSameScoreRule(sameScoreRule);
+                                      setTempRemainderRule(remainderRule);
+                                      setTempRemainderSpecificLevel(remainderSpecificLevel);
+                                      setIsBatchEditingRatios(true);
+                                    }}
+                                    className="text-[11px] text-[#15B8A6] hover:opacity-85 font-semibold cursor-pointer"
+                                  >
+                                    修改默认比例
+                                  </button>
+                                </div>
+                                <div className="grid grid-cols-4 gap-1.5">
+                                  {rankRatios.map((ratio, rIdx) => (
+                                    <div key={rIdx} className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[4px] py-1 px-1.5 text-center">
+                                      <div className="text-[10px] text-[#4B5563] font-semibold">{ratio.name}等</div>
+                                      <div className="text-[11px] text-[#15B8A6] font-bold">{ratio.max - ratio.min}%</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                              
+                              {/* Same score rules and remainder rules directly inside! */}
+                              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-[#6B7280] font-medium">同分（超人数）处理 :</span>
+                                  <select
+                                    value={sameScoreRule}
+                                    onChange={(e) => setSameScoreRule(e.target.value)}
+                                    className="h-[28px] px-1.5 border border-neutral-200 rounded text-[#1F2937] bg-white focus:outline-none focus:border-[#15B8A6] font-sans"
+                                  >
+                                    <option value="allow_exceed">占满当前等级 (不顺延)</option>
+                                    <option value="push_to_next">顺延至下一等级</option>
+                                  </select>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-[#6B7280] font-medium">舍入余缺分配 :</span>
+                                  <select
+                                    value={remainderRule}
+                                    onChange={(e) => {
+                                      setRemainderRule(e.target.value);
+                                    }}
+                                    className="h-[28px] px-1.5 border border-neutral-200 rounded text-[#1F2937] bg-white focus:outline-none focus:border-[#15B8A6] font-sans"
+                                  >
+                                    <option value="next">顺序合并到下一等级</option>
+                                    <option value="specific">统一并入指定等级</option>
+                                  </select>
+                                </div>
+                              </div>
+                              {remainderRule === "specific" && (
+                                <div className="flex items-center gap-2 bg-[#F9FAFB] p-1.5 rounded border border-[#E5E7EB] text-[11px]">
+                                  <span className="text-[#6B7280]">合并到指定等级:</span>
+                                  <select
+                                    value={remainderSpecificLevel}
+                                    onChange={(e) => setRemainderSpecificLevel(e.target.value)}
+                                    className="h-[24px] px-2 border border-neutral-200 rounded text-[#1F2937] bg-white focus:outline-none focus:border-[#15B8A6] font-sans"
+                                  >
+                                    {rankRatios.map((r) => (
+                                      <option key={r.name} value={r.name}>{r.name}等</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="text-[11px] text-[#6B7280] font-medium px-3 flex justify-between items-center bg-white py-2 rounded-[8px] border border-neutral-200 shadow-sm">
+                        <span>当前维度: <strong className="text-[#15B8A6]">各绩效组比例规则与计划人数分布</strong></span>
+                        <span>共 {groups.length} 个绩效组/部门</span>
+                      </div>
+                      
+                      {groups.map((g, idx) => {
+                        const isCustom = !!groupRatiosOverride[g.name];
+                        const currentRatios = groupRatiosOverride[g.name] || rankRatios;
+                        const isEditing = inlineEditingGroup === g.name;
+
+                        return (
+                          <div 
+                            key={idx} 
+                            className={`bg-white border rounded-[8px] p-[16px] flex flex-col gap-3 transition-all shadow-[1px_1px_4px_4px_rgba(83,84,85,0.02)] ${
+                              isEditing ? "border-[#15B8A6] ring-1 ring-[#15B8A6]/20 bg-teal-50/5" : "border-neutral-200 hover:border-[#15B8A6]/40"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
+                              <span className="text-[13px] font-semibold text-[#1F2937] flex items-center gap-1.5 min-w-0">
+                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isCustom ? "bg-amber-500 animate-pulse" : "bg-[#15B8A6]"}`}></span>
+                                <span className="truncate">{g.name}</span>
+                                {isCustom && (
+                                  <span className="text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded border border-amber-200/50 font-semibold select-none shrink-0 scale-90">
+                                    独立比例
+                                  </span>
+                                )}
+                              </span>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-[11px] bg-[#E6FFFA] text-[#15B8A6] font-semibold px-2 py-0.5 rounded border border-[#15B8A6]/10">
+                                  组总人数: <strong className="text-[#15B8A6]">{g.size}人</strong>
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Beautiful visual segmented distribution bar on current active ratios */}
+                            <div className="flex flex-col gap-1">
+                              <div className="text-[10px] text-[#6B7280] font-medium flex items-center justify-between">
+                                <span>比例带分布进度条:</span>
+                                <span>{isCustom ? "已开启独立占比" : "共享全局统一"}</span>
+                              </div>
+                              <div className="w-full h-4 bg-neutral-100 rounded-full overflow-hidden flex shadow-inner text-[0px]">
+                                {(isEditing ? inlineGroupRatios : currentRatios).map((ratio, rIdx) => {
+                                  const pct = Math.max(0, ratio.max - ratio.min);
+                                  if (pct <= 0) return null;
+                                  const colors = [
+                                    "bg-[#15B8A6]", // S
+                                    "bg-[#2DD4BF]", // A
+                                    "bg-[#5EEAD4]", // B
+                                    "bg-[#99F6E4]", // C
+                                    "bg-[#CCFBF1]", // D
+                                    "bg-[#E6FFFA]", // E
+                                  ];
+                                  const bgColor = colors[rIdx % colors.length];
+                                  return (
+                                    <div 
+                                      key={rIdx} 
+                                      style={{ width: `${pct}%` }} 
+                                      className={`${bgColor} h-full flex items-center justify-center text-[9px] font-bold text-white relative transition-all duration-300`}
+                                      title={`${ratio.name}等: ${pct}%`}
+                                    >
+                                      {pct >= 10 && <span className="drop-shadow-sm truncate px-0.5">{ratio.name}({pct}%)</span>}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {isEditing ? (
+                              /* Interactive Ratio Editing Table */
+                              <div className="mt-1 flex flex-col gap-3">
+                                <div className="border border-[#E5E7EB] rounded-[6px] overflow-hidden">
+                                  <table className="w-full text-left border-collapse text-[11px]">
+                                    <thead>
+                                      <tr className="bg-neutral-100 border-b border-neutral-200 text-[#4B5563] font-semibold">
+                                        <th className="py-2 px-3">评估等级</th>
+                                        <th className="py-2 px-3 w-[240px]">排名比例范围 (%)</th>
+                                        <th className="py-1.5 px-3 text-right">占比 (预计人数)</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {inlineGroupRatios.map((ratio, rIdx) => {
+                                        const pct = Math.max(0, ratio.max - ratio.min);
+                                        const expectedValue = Math.round((pct * g.size) / 100);
+
+                                        return (
+                                          <tr key={rIdx} className="border-b border-neutral-200 last:border-b-0 bg-white">
+                                            <td className="py-1.5 px-3 font-bold text-[#1F2937]">
+                                              {ratio.name}等
+                                            </td>
+                                            <td className="py-1 px-3">
+                                              <div className="flex items-center gap-1">
+                                                <div className="relative w-[85px]">
+                                                  <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="100"
+                                                    value={ratio.min}
+                                                    onChange={(e) => {
+                                                      const val = Math.min(100, Math.max(0, Number(e.target.value)));
+                                                      const updated = inlineGroupRatios.map((r, i) =>
+                                                        i === rIdx ? { ...r, min: val } : r
+                                                      );
+                                                      setInlineGroupRatios(updated);
+                                                    }}
+                                                    className="w-full h-[26px] pl-1.5 pr-4 border border-neutral-200 rounded-[4px] text-[11px] focus:outline-none focus:border-[#15B8A6]"
+                                                  />
+                                                  <span className="absolute right-1 text-[9px] text-[#9CA3AF] top-[5px]">%</span>
+                                                </div>
+                                                <span className="text-neutral-400 text-[10px]">-</span>
+                                                <div className="relative w-[85px]">
+                                                  <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="100"
+                                                    value={ratio.max}
+                                                    onChange={(e) => {
+                                                      const val = Math.min(100, Math.max(0, Number(e.target.value)));
+                                                      const updated = inlineGroupRatios.map((r, i) =>
+                                                        i === rIdx ? { ...r, max: val } : r
+                                                      );
+                                                      setInlineGroupRatios(updated);
+                                                    }}
+                                                    className="w-full h-[26px] pl-1.5 pr-4 border border-neutral-200 rounded-[4px] text-[11px] focus:outline-none focus:border-[#15B8A6]"
+                                                  />
+                                                  <span className="absolute right-1 text-[9px] text-[#9CA3AF] top-[5px]">%</span>
+                                                </div>
+                                              </div>
+                                            </td>
+                                            <td className="py-1.5 px-3 text-right">
+                                              <span className="font-semibold text-[#15B8A6]">{pct}%</span>
+                                              <span className="text-[10px] text-[#4B5563] ml-1">({expectedValue}人)</span>
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+
+                                <div className="flex justify-between items-center pt-2 border-t border-neutral-100">
+                                  {isCustom ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const updated = { ...groupRatiosOverride };
+                                        delete updated[g.name];
+                                        setGroupRatiosOverride(updated);
+                                        setInlineEditingGroup(null);
+                                      }}
+                                      className="text-[11px] text-[#EF4444] hover:text-red-650 font-semibold flex items-center gap-0.5 cursor-pointer bg-red-50 px-2 py-1 rounded border border-red-100 font-sans"
+                                    >
+                                      恢复全局比例
+                                    </button>
+                                  ) : (
+                                    <span className="text-[11px] text-[#9CA3AF]">编辑完毕后点击保存生效</span>
+                                  )}
+                                  <div className="flex justify-end gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setInlineEditingGroup(null)}
+                                      className="px-3 h-[28px] text-[11px] border border-[#E5E7EB] rounded-[4px] text-[#4B5563] hover:bg-neutral-50 transition-colors cursor-pointer"
+                                    >
+                                      取消
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        // Save custom overrides
+                                        setGroupRatiosOverride(prev => ({
+                                          ...prev,
+                                          [g.name]: inlineGroupRatios
+                                        }));
+                                        setInlineEditingGroup(null);
+                                      }}
+                                      className="px-3 h-[28px] text-[11px] bg-[#15B8A6] hover:bg-[#12a191] rounded-[4px] text-white font-medium transition-colors cursor-pointer"
+                                    >
+                                      保存生效
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              /* Standard Display detailed breakdown cards/grid */
+                              <div className="flex flex-col gap-2.5">
+                                <div className="grid grid-cols-3 gap-2 mt-1">
+                                  {currentRatios.map((ratio, rIdx) => {
+                                    const pct = Math.max(0, ratio.max - ratio.min);
+                                    const expectedVal = Math.round((pct * g.size) / 100);
+                                    return (
+                                      <div key={rIdx} className="bg-[#F9FAFB] border border-neutral-100 rounded-[6px] p-2 flex flex-col gap-1 hover:bg-[#15B8A6]/5 transition-all">
+                                        <div className="flex items-center justify-between border-b border-neutral-200/40 pb-1">
+                                          <span className="text-[11px] font-bold text-[#374151]">
+                                            {ratio.name} 等
+                                          </span>
+                                          <span className="text-[10.5px] text-[#15B8A6] font-semibold">{pct}%</span>
+                                        </div>
+                                        <div className="flex justify-between items-baseline mt-1 gap-1">
+                                          <span className="text-[9px] text-[#9CA3AF] truncate max-w-[45px]">
+                                            {g.size}×{pct}%
+                                          </span>
+                                          <span className="text-[12.5px] font-bold text-[#15B8A6]">
+                                            {expectedVal}<span className="text-[9px] font-normal text-[#4B5563] ml-0.5">人</span>
+                                          </span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+
+                                <div className="flex justify-between items-center pt-2 border-t border-neutral-100">
+                                  <span className="text-[11px] text-[#6B7280]">
+                                    规则状态: {isCustom ? (
+                                      <span className="text-amber-600 font-semibold flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                        独立排名比例
+                                      </span>
+                                    ) : (
+                                      <span className="text-green-600 font-semibold flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                        共享全局比例
+                                      </span>
+                                    )}
+                                  </span>
+
+                                  <div className="flex gap-2">
+                                    {isCustom && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const updated = { ...groupRatiosOverride };
+                                          delete updated[g.name];
+                                          setGroupRatiosOverride(updated);
+                                          if (inlineEditingGroup === g.name) {
+                                            setInlineEditingGroup(null);
+                                          }
+                                        }}
+                                        className="text-[11px] text-[#EF4444] hover:text-red-650 font-semibold flex items-center gap-0.5 cursor-pointer bg-red-50 px-2 py-1 rounded border border-red-100 font-sans"
+                                      >
+                                        恢复默认比例
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setInlineEditingGroup(g.name);
+                                        setInlineGroupRatios(currentRatios.map(r => ({ ...r })));
+                                      }}
+                                      className="text-[11px] text-[#15B8A6] hover:text-[#0F9688] font-semibold flex items-center gap-1 cursor-pointer bg-[#15B8A6]/5 border border-[#15B8A6]/20 px-2.5 py-1 rounded transition-colors font-sans"
+                                    >
+                                      <SlidersHorizontal size={10} />
+                                      设置独立比例
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      <div className="bg-white rounded-[8px] border border-neutral-200 p-[16px] text-[11px] text-[#6B7280] flex flex-col gap-2 shadow-[1px_1px_4px_4px_rgba(83,84,85,0.02)]">
+                        <div className="font-semibold text-[#1F2937] flex items-center gap-1.5">
+                          <Info size={13} className="text-[#15B8A6]" />
+                          <span>关于多绩效考核组计算规则</span>
+                        </div>
+                        <p>
+                          系统支持对每一个考核对象或分组团队分别按「比例」自动得出预计分配人数。
+                        </p>
+                        <p>
+                          当等级排名范围选择为分组时，每个部门、考核组或自定义团队对应算出的独立分布人数累加所得即为预计总人数上限。
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // CASE 2: LEVEL PERSPECTIVE (SINGLE LEVEL TARGETED)
+                if (selectedRatioName) {
+                  const currentRatio = rankRatios.find(r => r.name === selectedRatioName);
+                  const pct = currentRatio ? (currentRatio.max - currentRatio.min) : 0;
+                  return (
+                    <div className="flex flex-col gap-2">
+                      <div className="text-[11px] text-[#6B7280] font-medium px-3 flex justify-between items-center bg-white py-2 rounded-[8px] border border-neutral-200 shadow-sm">
+                        <span>当前筛选: <strong className="text-[#15B8A6]">{selectedRatioName}等级</strong> (全局默认比例: {pct}%)</span>
+                        <span>共 {groups.length} 个分组</span>
+                      </div>
+                      
+                      {groups.map((g, idx) => {
+                        const ratiosForGroup = groupRatiosOverride[g.name] || rankRatios;
+                        const matchRatio = ratiosForGroup.find(r => r.name === selectedRatioName);
+                        const pctForGroup = matchRatio ? Math.max(0, matchRatio.max - matchRatio.min) : 0;
+                        const expectedVal = Math.round((pctForGroup * g.size) / 100);
+                        const isOverridden = !!groupRatiosOverride[g.name];
+
+                        return (
+                          <div 
+                            key={idx} 
+                            className="bg-white border border-neutral-200 rounded-[8px] p-[16px] flex items-center justify-between hover:border-[#15B8A6]/45 transition-all shadow-[1px_1px_4px_4px_rgba(83,84,85,0.02)] group"
+                          >
+                            <div className="flex flex-col gap-1.5 max-w-[70%]">
+                              <span className="text-[13px] font-semibold text-[#1F2937] flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#15B8A6]"></span>
+                                {g.name}
+                                {isOverridden && (
+                                  <span className="text-[9px] bg-amber-50 text-amber-600 px-1 py-0.2 rounded border border-amber-200/50 font-semibold select-none shrink-0 scale-90">
+                                    独立比例: {pctForGroup}%
+                                  </span>
+                                )}
+                              </span>
+                              <div className="flex items-center gap-2 text-[11px] text-[#6B7280]">
+                                <span className="bg-[#F9FAFB] px-1.5 py-0.5 rounded border border-neutral-200">总人数: {g.size}人</span>
+                                <span className="text-[#9CA3AF]">算式: {g.size} × {pctForGroup}% = {((pctForGroup * g.size) / 100).toFixed(1)}人</span>
+                              </div>
+                            </div>
+                            <div className="text-right flex flex-col items-end">
+                              <span className="text-[15px] font-bold text-[#15B8A6]">{expectedVal} <span className="text-[11px] font-normal text-[#4B5563]">人</span></span>
+                              <span className="text-[10px] text-[#9CA3AF]">{isOverridden ? "独立舍入值" : "四舍五入值"}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                } else {
+                  // CASE 3: LEVEL PERSPECTIVE (ALL LEVEL TABLE SUMMARY)
+                  return (
+                    <div className="flex flex-col gap-3">
+                      <div className="bg-white rounded-[8px] border border-neutral-200 overflow-hidden shadow-[1px_1px_4px_4px_rgba(83,84,85,0.02)] p-4">
+                        <table className="w-full text-left border-collapse text-[12px]">
+                          <thead>
+                            <tr className="bg-[#F9FAFB] border-b border-neutral-200 font-semibold text-[#4B5563]">
+                              <th className="py-2 px-3">绩效组别 / 部门</th>
+                              <th className="py-2 px-3 text-center w-[80px]">总人数</th>
+                              {rankRatios.map((ratio) => (
+                                <th key={ratio.name} className="py-2 px-3 text-right w-[80px] text-[#15B8A6]">
+                                  {ratio.name}等 ({ratio.max - ratio.min}%)
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {groups.map((g, idx) => (
+                              <tr key={idx} className="border-b border-neutral-100 last:border-b-0 text-[#1F2937] hover:bg-neutral-50/50">
+                                <td className="py-2.5 px-3 font-medium text-[#1F2937]">
+                                  <div className="flex items-center justify-between max-w-[180px]">
+                                    <div className="flex items-center gap-1.5 truncate">
+                                      <span className="w-1 h-3 bg-[#15B8A6]/60 rounded-sm"></span>
+                                      {g.name}
+                                    </div>
+                                    {groupRatiosOverride[g.name] && (
+                                      <span className="text-[9px] bg-amber-50 text-amber-600 px-1 py-0.2 rounded border border-amber-200/50 font-bold select-none shrink-0 scale-90 font-sans">
+                                        独立
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-2.5 px-3 text-center text-[#6B7280] font-medium">
+                                  {g.size}人
+                                </td>
+                                {rankRatios.map((ratio) => {
+                                  const ratiosForGroup = groupRatiosOverride[g.name] || rankRatios;
+                                  const matchRatio = ratiosForGroup.find(r => r.name === ratio.name) || ratio;
+                                  const pct = Math.max(0, matchRatio.max - matchRatio.min);
+                                  const expected = Math.round((pct * g.size) / 100);
+                                  return (
+                                    <td key={ratio.name} className="py-2.5 px-3 text-right font-semibold text-[#15B8A6]">
+                                      <span>{expected}人</span>
+                                      {groupRatiosOverride[g.name] && (
+                                        <span className="block text-[9px] font-normal text-amber-500 scale-90 text-right pr-0.5">
+                                          ({pct}%)
+                                        </span>
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div className="bg-teal-50/40 rounded-[8px] border border-[#15B8A6]/10 p-[16px] text-[11px] text-[#4B5563] flex flex-col gap-2 shadow-[1px_1px_4px_4px_rgba(83,84,85,0.02)] bg-white">
+                        <div className="font-semibold text-teal-850 flex items-center gap-1">
+                          <Info size={13} className="text-[#15B8A6]" />
+                          <span>关于四舍五入尾数处理</span>
+                        </div>
+                        <p>
+                          1. 精确计算：预计人数 = 各考核绩效组总人数 × 对应等级的排名比例百分比。
+                        </p>
+                        <p>
+                          2. 整数舍入：计算得到的数值在保留逻辑中经过四舍五入。
+                        </p>
+                        <p>
+                          3. 跨组计算：各个独立绩效考核组都会分别采取等级分配比，本页面表格显示的预计总人数是各考核组计算舍入后结果的累加值。
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+              })()}
+            </div>
+
+            {/* Drawer Footer */}
+            <div className="h-[48px] bg-white border-t border-neutral-200 flex items-center justify-end px-4 gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowBreakdownDrawer(false)}
+                className="px-4 h-[28px] border border-neutral-200 rounded-[4px] text-[12px] text-[#4B5563] hover:bg-neutral-50 transition-colors cursor-pointer"
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCreateLevelRuleSimModal && (
+        <QuickCreateLevelRuleModal
+          onClose={() => setShowCreateLevelRuleSimModal(false)}
+          onSave={(ruleName, levels) => {
+            const nextVal = String(Date.now() + Math.random());
+            const opt = {
+              value: nextVal,
+              label: ruleName,
+            };
+            setLevelRuleOptions([...levelRuleOptions, opt]);
+            setLevelRulesMap({
+              ...levelRulesMap,
+              [nextVal]: levels.map((l: any) => ({
+                name: l.name,
+                min: Number(l.min),
+                max: Number(l.max),
+              })),
+            });
+            setSelectedLevelRule(nextVal);
+            setShowCreateLevelRuleSimModal(false);
+          }}
+        />
+      )}
+
+      {showCreateForcedRuleSimModal && (
+        <QuickCreateForcedRuleModal
+          onClose={() => setShowCreateForcedRuleSimModal(false)}
+          levelRules={levelRuleOptions.map((opt) => ({
+            value: opt.value,
+            label: opt.label,
+            levels: levelRulesMap[opt.value]?.map((l) => l.name) || ["S", "A", "B", "C"],
+          }))}
+          onSave={(ruleName, levelRuleName, ratios) => {
+            const newOptionVal = `rule_${Date.now()}`;
+            const ratioStr = Object.entries(ratios)
+              .map(([k, v]) => `${k}:${v}%`)
+              .join("-");
+            const newRuleObj = {
+              value: newOptionVal,
+              label: `${ruleName} (${ratioStr})`,
+            };
+            setSimForcedRules([...simForcedRules, newRuleObj]);
+            setSelectedSimForcedRule(newOptionVal);
+            setShowCreateForcedRuleSimModal(false);
           }}
         />
       )}
@@ -3938,16 +5638,16 @@ function AssessmentResultSetting({
                         <CustomSelect
                           options={[
                             { label: "最末级", value: "last" },
-                            { label: "1级部门", value: "1" },
-                            { label: "2级部门", value: "2" },
-                            { label: "3级部门", value: "3" },
+                            { label: "第一级", value: "1" },
+                            { label: "第二级", value: "2" },
+                            { label: "第三级", value: "3" },
                           ]}
                           value={deptLevel}
                           onChange={setDeptLevel}
                           placeholder="请选择部门层级"
                         />
                         <span className="text-[12px] text-[#9CA3AF]">
-                          以员工所在的部门为第一级
+                          自下往上（员工所在部门设为第一级）
                         </span>
                       </div>
                     </FormRow>
@@ -4267,11 +5967,20 @@ function AssessmentScheme({
   setCurrentView,
   newlyCreatedRule,
   rulesList,
+  setRulesList,
 }: {
   setCurrentView: (view: string) => void;
   newlyCreatedRule?: string;
   rulesList: any[];
+  setRulesList: React.Dispatch<React.SetStateAction<any[]>>;
 }) {
+  const [levelRuleOptionsMain, setLevelRuleOptionsMain] = React.useState([
+    { value: "1", label: "4个等级 (S,A,B,C)", levels: ["S", "A", "B", "C"] },
+    { value: "2", label: "3个等级 (A,B,C)", levels: ["A", "B", "C"] },
+  ]);
+  const [showCreateLevelRuleMainModal, setShowCreateLevelRuleMainModal] = React.useState(false);
+  const [showCreateForcedRuleMainModal, setShowCreateForcedRuleMainModal] = React.useState(false);
+
   const [currentStep, setCurrentStep] = React.useState(4); // 3: 考核流程确认, 4: 考核结果设置
   const [assessmentMethod, setAssessmentMethod] = React.useState("score"); // 'score' | 'rating'
   const [resultFormats, setResultFormats] = React.useState(["score"]); // ['score', 'level']
@@ -4741,13 +6450,12 @@ function AssessmentScheme({
                         </div>
                         <div className="w-[320px]">
                           <CustomSelect
-                            options={[
-                              { value: "1", label: "4个等级 (S,A,B,C)" },
-                              { value: "2", label: "3个等级 (A,B,C)" },
-                            ]}
+                            options={levelRuleOptionsMain}
                             value={selectedLevelRule}
                             onChange={setSelectedLevelRule}
                             placeholder="请选择等级规则"
+                            onCreate={() => setShowCreateLevelRuleMainModal(true)}
+                            createLabel="+ 快捷创建等级规则"
                           />
                         </div>
                       </div>
@@ -4793,12 +6501,12 @@ function AssessmentScheme({
                                   >
                                     请选择部门层级
                                   </option>
-                                  <option value="1">第一级部门</option>
-                                  <option value="2">第二级部门</option>
-                                  <option value="3">第三级部门</option>
+                                  <option value="1">第一级</option>
+                                  <option value="2">第二级</option>
+                                  <option value="3">第三级</option>
                                 </select>
                                 <span className="text-[12px] text-[#9CA3AF]">
-                                  以员工所在的部门为第一级
+                                  自下往上（员工所在部门设为第一级）
                                 </span>
                               </div>
                             )}
@@ -5003,17 +6711,17 @@ function AssessmentScheme({
                                                       末级部门
                                                     </option>
                                                     <option value="1">
-                                                      1级部门
+                                                      第一级
                                                     </option>
                                                     <option value="2">
-                                                      2级部门
+                                                      第二级
                                                     </option>
                                                     <option value="3">
-                                                      3级部门
+                                                      第三级
                                                     </option>
                                                   </select>
                                                   <span className="text-[11px] text-[#9CA3AF] leading-tight whitespace-nowrap">
-                                                    以员工所在的部门为第一级
+                                                    自下往上（员工所在部门设为第一级）
                                                   </span>
                                                 </div>
                                               )}
@@ -5032,15 +6740,15 @@ function AssessmentScheme({
                                         </td>
                                         <td className="py-[16px] px-[16px]">
                                           {setting.enabled && (
-                                            <div className="flex items-center gap-2">
-                                              <select
-                                                className="h-[32px] px-2 border border-[#E5E7EB] rounded-[4px] text-[13px] text-[#1F2937] focus:outline-none focus:border-[#15B8A6] bg-white flex-1"
+                                            <div className="flex items-center gap-2 w-full">
+                                              <CustomSelect
+                                                options={filteredForcedRules}
                                                 value={setting.rule}
-                                                onChange={(e) => {
+                                                onChange={(val) => {
                                                   updateForcedDistSetting(
                                                     setting.id,
                                                     "rule",
-                                                    e.target.value,
+                                                    val,
                                                   );
                                                   updateForcedDistSetting(
                                                     setting.id,
@@ -5053,25 +6761,11 @@ function AssessmentScheme({
                                                     {},
                                                   );
                                                 }}
-                                              >
-                                                <option value="">请选择</option>
-                                                {filteredForcedRules.map(
-                                                  (r) => (
-                                                    <option
-                                                      key={r.value}
-                                                      value={r.value}
-                                                    >
-                                                      {r.label}
-                                                    </option>
-                                                  ),
-                                                )}
-                                                {filteredForcedRules.length ===
-                                                  0 && (
-                                                  <option value="rule1">
-                                                    默认分布规则 (2-7-1)
-                                                  </option>
-                                                )}
-                                              </select>
+                                                placeholder="请选择"
+                                                className="flex-1 min-w-[120px]"
+                                                onCreate={() => setShowCreateForcedRuleMainModal(true)}
+                                                createLabel="+ 快捷创建强制分布规则"
+                                              />
                                               {setting.scope !== "all" && (
                                                 <div className="flex items-center gap-2">
                                                   {setting.hasModifiedGroups && (
@@ -5237,7 +6931,7 @@ function AssessmentScheme({
             setIsConfigured(true);
             setShowResultSetting(false);
           }}
-          onCreateRule={() => {}}
+          onCreateRule={() => setShowCreateForcedRuleMainModal(true)}
         />
       )}
 
@@ -5253,6 +6947,7 @@ function AssessmentScheme({
             ({} as any)
           }
           onClose={() => setActiveGroupConfigNode(null)}
+          onCreateRule={() => setShowCreateForcedRuleMainModal(true)}
           onSave={(data) => {
             updateForcedDistSetting(
               activeGroupConfigNode,
@@ -5288,6 +6983,44 @@ function AssessmentScheme({
           }}
         />
       )}
+
+      {showCreateLevelRuleMainModal && (
+        <QuickCreateLevelRuleModal
+          onClose={() => setShowCreateLevelRuleMainModal(false)}
+          onSave={(ruleName, levels) => {
+            const nextVal = String(levelRuleOptionsMain.length + 1);
+            const opt = {
+              value: nextVal,
+              label: `${levels.length}个等级 (${levels.map((l: any) => l.name).join(",")}) [${ruleName}]`,
+              levels: levels.map((l: any) => l.name),
+            };
+            setLevelRuleOptionsMain([...levelRuleOptionsMain, opt]);
+            setSelectedLevelRule(nextVal);
+            setShowCreateLevelRuleMainModal(false);
+          }}
+        />
+      )}
+
+      {showCreateForcedRuleMainModal && (
+        <QuickCreateForcedRuleModal
+          onClose={() => setShowCreateForcedRuleMainModal(false)}
+          levelRules={levelRuleOptionsMain}
+          onSave={(ruleName, levelRuleName, ratios) => {
+            const newOptionVal = `rule_${Date.now()}`;
+            const ratioStr = Object.entries(ratios)
+              .map(([k, v]) => `${k}:${v}%`)
+              .join("-");
+            const newRuleObj = {
+              value: newOptionVal,
+              label: `${ruleName} (${ratioStr})`,
+              levelRule: levelRuleName,
+            };
+            setRulesList((prev: any[]) => [...prev, newRuleObj]);
+            setSelectedForcedRule(newOptionVal);
+            setShowCreateForcedRuleMainModal(false);
+          }}
+        />
+      )}
     </>
   );
 }
@@ -5298,6 +7031,7 @@ function GroupConfigModal({
   onSave,
   rulesList,
   initialData,
+  onCreateRule,
 }: {
   nodeName: string;
   onClose: () => void;
@@ -5313,6 +7047,7 @@ function GroupConfigModal({
     rule: string;
     scope?: string;
   };
+  onCreateRule: () => void;
 }) {
   const outerRule = initialData.rule || "";
   const scope = initialData.scope || "group";
@@ -5517,23 +7252,17 @@ function GroupConfigModal({
                     )}
                   </td>
                   <td className="py-[16px] px-[16px]">
-                    <select
-                      className="h-[32px] px-2 border border-[#E5E7EB] rounded-[4px] text-[13px] text-[#1F2937] focus:outline-none focus:border-[#15B8A6] bg-white w-full max-w-[240px]"
+                    <CustomSelect
+                      options={rulesList}
                       value={item.rule}
-                      onChange={(e) =>
-                        handleItemChange(item.id, "rule", e.target.value)
+                      onChange={(val) =>
+                        handleItemChange(item.id, "rule", val)
                       }
-                    >
-                      <option value="">请选择</option>
-                      {rulesList.map((r) => (
-                        <option key={r.value} value={r.value}>
-                          {r.label}
-                        </option>
-                      ))}
-                      {rulesList.length === 0 && (
-                        <option value="rule1">默认分布规则 (2-7-1)</option>
-                      )}
-                    </select>
+                      placeholder="请选择"
+                      className="w-full max-w-[240px]"
+                      onCreate={onCreateRule}
+                      createLabel="+ 快捷创建强制分布规则"
+                    />
                   </td>
                 </tr>
               ))}
@@ -5926,16 +7655,11 @@ function DistributionTable({
               <th className="py-[10px] px-[16px] text-[13px] font-medium text-[#4B5563] w-[15%]">
                 等级名称
               </th>
-              {!hideScoreRules &&
-                (isRank ? (
-                  <th className="py-[10px] px-[16px] text-[13px] font-medium text-[#4B5563] w-[30%]">
-                    排名比例
-                  </th>
-                ) : (
-                  <th className="py-[10px] px-[16px] text-[13px] font-medium text-[#4B5563] w-[20%]">
-                    分值 (x) 范围
-                  </th>
-                ))}
+              {!hideScoreRules && !isRank && (
+                <th className="py-[10px] px-[16px] text-[13px] font-medium text-[#4B5563] w-[20%]">
+                  分值 (x) 范围
+                </th>
+              )}
               <th className="py-[10px] px-[16px] text-[13px] font-medium text-[#4B5563] w-[15%]">
                 强分规则
               </th>
@@ -6051,66 +7775,9 @@ function DistributionTable({
                     </div>
                   )}
                 </td>
-                {!hideScoreRules && (
+                {!hideScoreRules && !isRank && (
                   <td className="py-[12px] px-[16px] text-[13px] text-[#4B5563]">
-                    {isRank ? (
-                      isRowReadOnly(idx) || isView ? (
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center border border-[#E5E7EB] rounded-[4px] h-[32px] bg-[#F3F4F6] overflow-hidden w-[100px]">
-                            <span className="w-full px-[8px] text-[13px] text-[#9CA3AF] select-none">
-                              {row.rankStart || "0"}
-                            </span>
-                            <span className="px-[8px] text-[#9CA3AF] bg-[#E5E7EB] border-l border-[#E5E7EB] h-full flex items-center select-none">
-                              %
-                            </span>
-                          </div>
-                          <span className="text-[#6B7280]">~</span>
-                          <div className="flex items-center border border-[#E5E7EB] rounded-[4px] h-[32px] bg-[#F3F4F6] overflow-hidden w-[100px]">
-                            <span className="w-full px-[8px] text-[13px] text-[#9CA3AF] select-none">
-                              {row.rankEnd || "0"}
-                            </span>
-                            <span className="px-[8px] text-[#9CA3AF] bg-[#E5E7EB] border-l border-[#E5E7EB] h-full flex items-center select-none">
-                              %
-                            </span>
-                          </div>
-                          <span className="text-[12px] text-amber-600 bg-amber-50 px-1 py-0.5 rounded ml-2 select-none">只读</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center border border-[#E5E7EB] rounded-[4px] h-[32px] bg-white overflow-hidden w-[100px]">
-                            <input
-                              type="text"
-                              placeholder="0"
-                              value={row.rankStart || ""}
-                              onChange={(e) =>
-                                handleRankChange(idx, "rankStart", e.target.value)
-                              }
-                              className="w-full h-full px-[8px] text-[13px] focus:outline-none"
-                            />
-                            <span className="px-[8px] text-[#6B7280] bg-[#F9FAFB] border-l border-[#E5E7EB] h-full flex items-center">
-                              %
-                            </span>
-                          </div>
-                          <span className="text-[#6B7280]">~</span>
-                          <div className="flex items-center border border-[#E5E7EB] rounded-[4px] h-[32px] bg-white overflow-hidden w-[100px]">
-                            <input
-                              type="text"
-                              placeholder="100"
-                              value={row.rankEnd || ""}
-                              onChange={(e) =>
-                                handleRankChange(idx, "rankEnd", e.target.value)
-                              }
-                              className="w-full h-full px-[8px] text-[13px] focus:outline-none"
-                            />
-                            <span className="px-[8px] text-[#6B7280] bg-[#F9FAFB] border-l border-[#E5E7EB] h-full flex items-center">
-                              %
-                            </span>
-                          </div>
-                        </div>
-                      )
-                    ) : (
-                      row.range
-                    )}
+                    {row.range}
                   </td>
                 )}
                 <td className="py-[12px] px-[16px]">
@@ -9388,6 +11055,399 @@ function EmployeeDistributionImmersiveView({ onBack }: { onBack: () => void }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ==========================================
+// 快捷创建等级规则弹窗 (Modal)
+// ==========================================
+interface LevelDetail {
+  id: string;
+  name: string;
+  min: number;
+  max: number;
+}
+
+function QuickCreateLevelRuleModal({
+  onClose,
+  onSave,
+}: {
+  onClose: () => void;
+  onSave: (ruleName: string, levels: { name: string; min: number; max: number }[]) => void;
+}) {
+  const [ruleName, setRuleName] = useState("");
+  const [levels, setLevels] = useState<LevelDetail[]>([
+    { id: "1", name: "S", min: 0, max: 10 },
+    { id: "2", name: "A", min: 10, max: 30 },
+    { id: "3", name: "B", min: 30, max: 90 },
+    { id: "4", name: "C", min: 90, max: 100 },
+  ]);
+
+  const addLevel = () => {
+    const nextChar = String.fromCharCode(65 + levels.length); // A, B, C, D...
+    const lastMax = levels.length > 0 ? levels[levels.length - 1].max : 0;
+    const newMin = lastMax;
+    const newMax = Math.min(100, lastMax + 10);
+    setLevels([
+      ...levels,
+      {
+        id: String(Date.now() + Math.random()),
+        name: nextChar,
+        min: newMin,
+        max: newMax,
+      },
+    ]);
+  };
+
+  const removeLevel = (id: string) => {
+    if (levels.length <= 2) return;
+    const filtered = levels.filter((l) => l.id !== id);
+    // Recalculate ranges sequentially to maintain continuity
+    let current = 0;
+    const recalculated = filtered.map((l) => {
+      const diff = l.max - l.min;
+      const min = current;
+      const max = Math.min(100, current + (diff > 0 ? diff : 10));
+      current = max;
+      return { ...l, min, max };
+    });
+    setLevels(recalculated);
+  };
+
+  const handleLevelNameChange = (id: string, name: string) => {
+    setLevels(levels.map((l) => (l.id === id ? { ...l, name } : l)));
+  };
+
+  const handleRangeChange = (id: string, field: "min" | "max", val: number) => {
+    setLevels(
+      levels.map((l) => (l.id === id ? { ...l, [field]: val } : l)),
+    );
+  };
+
+  const autoEquallyDivide = () => {
+    const count = levels.length;
+    if (count === 0) return;
+    const step = Math.floor(100 / count);
+    let current = 0;
+    const divided = levels.map((l, idx) => {
+      const min = current;
+      const max = idx === count - 1 ? 100 : current + step;
+      current = max;
+      return { ...l, min, max };
+    });
+    setLevels(divided);
+  };
+
+  const handleSave = () => {
+    if (!ruleName.trim()) {
+      alert("请输入等级规则名称");
+      return;
+    }
+    onSave(ruleName, levels);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center font-sans bg-black/40">
+      <div className="absolute inset-0" onClick={onClose}></div>
+      <div className="relative bg-white w-full max-w-[500px] rounded-[8px] overflow-hidden shadow-[0_4px_24px_rgba(0,0,0,0.1)] flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 bg-[#F9FAFB]">
+          <h3 className="text-[14px] font-semibold text-neutral-800">
+            快捷创建选项 - 等级规则
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-neutral-500 hover:text-neutral-700 font-bold transition-colors cursor-pointer text-[18px]"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="p-4 flex flex-col gap-4 overflow-y-auto">
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-medium text-neutral-700">
+              <span className="text-red-500 mr-1">*</span>等级规则名称 :
+            </span>
+            <input
+              type="text"
+              value={ruleName}
+              onChange={(e) => setRuleName(e.target.value)}
+              placeholder="请输入名称，例：五等第比例规则"
+              className="w-full h-8 px-3 border border-neutral-200 rounded-[4px] text-[13px] focus:outline-none focus:border-[#15B8A6] focus:ring-1 focus:ring-[#15B8A6]"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-medium text-neutral-700">
+                等级分布明细配置 :
+              </span>
+              <button
+                type="button"
+                onClick={autoEquallyDivide}
+                className="text-[11px] text-[#15B8A6] hover:underline font-semibold cursor-pointer"
+              >
+                自动等分比例
+              </button>
+            </div>
+
+            <div className="border border-neutral-200 rounded-[8px] overflow-hidden">
+              <table className="w-full text-[12px] text-left">
+                <thead className="bg-neutral-50 text-neutral-600 border-b border-neutral-200 font-medium">
+                  <tr>
+                    <th className="py-2 px-3 w-[70px]">等级</th>
+                    <th className="py-2 px-3">预计占比范围 (%)</th>
+                    <th className="py-2 px-3 w-[60px] text-center">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100 font-mono">
+                  {levels.map((level) => (
+                    <tr key={level.id} className="hover:bg-neutral-50/50">
+                      <td className="py-2 px-3">
+                        <input
+                          type="text"
+                          value={level.name}
+                          onChange={(e) => handleLevelNameChange(level.id, e.target.value)}
+                          className="w-full h-7 px-2 border border-neutral-200 rounded-[4px] text-center text-[12px] focus:outline-none focus:border-[#15B8A6]"
+                        />
+                      </td>
+                      <td className="py-2 px-3">
+                        <div className="flex items-center gap-1.5 text-neutral-500">
+                          <input
+                            type="number"
+                            value={level.min}
+                            onChange={(e) => handleRangeChange(level.id, "min", Number(e.target.value))}
+                            className="w-[60px] h-7 px-2 border border-neutral-200 rounded-[4px] text-center text-[12px] focus:outline-none focus:border-[#15B8A6] font-mono"
+                          />
+                          <span>到</span>
+                          <input
+                            type="number"
+                            value={level.max}
+                            onChange={(e) => handleRangeChange(level.id, "max", Number(e.target.value))}
+                            className="w-[60px] h-7 px-2 border border-neutral-200 rounded-[4px] text-center text-[12px] focus:outline-none focus:border-[#15B8A6] font-mono"
+                          />
+                          <span>%</span>
+                          <span className="text-[10px] text-neutral-400 font-mono ml-1 shrink-0">
+                            (幅: {level.max - level.min}%)
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => removeLevel(level.id)}
+                          disabled={levels.length <= 2}
+                          className="text-red-500 hover:text-red-700 disabled:text-neutral-300 font-semibold cursor-pointer disabled:cursor-not-allowed"
+                        >
+                          删除
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="p-2 bg-neutral-50/70 border-t border-neutral-200 flex justify-center">
+                <button
+                  type="button"
+                  onClick={addLevel}
+                  className="text-[11px] text-[#15B8A6] hover:text-[#0f9688] font-semibold flex items-center gap-0.5 cursor-pointer"
+                >
+                  + 添加一行等级
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end px-4 py-3 bg-[#F9FAFB] border-t border-neutral-200 gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 h-8 bg-white border border-neutral-200 text-neutral-600 rounded-[4px] text-[12px] hover:bg-neutral-50 hover:text-neutral-800 font-medium transition-colors cursor-pointer"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            className="px-4 h-8 bg-[#15B8A6] text-white rounded-[4px] text-[12px] hover:bg-[#0f9688] font-semibold transition-colors cursor-pointer shadow-sm"
+          >
+            保存并应用选择
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// 快捷创建强制分布规则弹窗 (Modal)
+// ==========================================
+function QuickCreateForcedRuleModal({
+  onClose,
+  onSave,
+  levelRules,
+}: {
+  onClose: () => void;
+  onSave: (ruleName: string, levelRuleName: string, ratios: Record<string, number>) => void;
+  levelRules: { value: string; label: string; levels: string[] }[];
+}) {
+  const [ruleName, setRuleName] = useState("");
+  const [selectedLevelId, setSelectedLevelId] = useState("");
+  const [levelRatios, setLevelRatios] = useState<Record<string, number>>({});
+
+  const currentLevels = levelRules.find((lr) => lr.value === selectedLevelId)?.levels || [];
+
+  useEffect(() => {
+    if (levelRules.length > 0 && !selectedLevelId) {
+      setSelectedLevelId(levelRules[0].value);
+    }
+  }, [levelRules, selectedLevelId]);
+
+  useEffect(() => {
+    if (currentLevels.length > 0) {
+      const initialRatios: Record<string, number> = {};
+      const step = Math.floor(100 / currentLevels.length);
+      currentLevels.forEach((level, idx) => {
+        initialRatios[level] = idx === currentLevels.length - 1 ? 100 - step * idx : step;
+      });
+      setLevelRatios(initialRatios);
+    }
+  }, [selectedLevelId, currentLevels]);
+
+  const handleRatioChange = (level: string, val: number) => {
+    setLevelRatios({
+      ...levelRatios,
+      [level]: Math.max(0, Math.min(100, val)),
+    });
+  };
+
+  const totalSum = (Object.values(levelRatios) as number[]).reduce((acc: number, curr: number) => acc + curr, 0);
+
+  const handleSave = () => {
+    if (!ruleName.trim()) {
+      alert("请输入强制分布规则名称");
+      return;
+    }
+    const currentLevelRule = levelRules.find((lr) => lr.value === selectedLevelId);
+    if (!currentLevelRule) {
+      alert("请选择有效的对应等级规则");
+      return;
+    }
+    if (totalSum !== 100) {
+      alert(`当前总分配比例为 ${totalSum}%, 强制分布规则比例总和必须为 100%`);
+      return;
+    }
+    onSave(ruleName, currentLevelRule.label, levelRatios);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center font-sans bg-black/40">
+      <div className="absolute inset-0" onClick={onClose}></div>
+      <div className="relative bg-white w-full max-w-[480px] rounded-[8px] overflow-hidden shadow-[0_4px_24px_rgba(0,0,0,0.1)] flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 bg-[#F9FAFB]">
+          <h3 className="text-[14px] font-semibold text-neutral-800">
+            快捷创建选项 - 强制分布规则
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-neutral-500 hover:text-neutral-700 font-bold transition-colors cursor-pointer text-[18px]"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="p-4 flex flex-col gap-4 overflow-y-auto">
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-medium text-neutral-700">
+              <span className="text-red-500 mr-1">*</span>强制分布规则名称 :
+            </span>
+            <input
+              type="text"
+              value={ruleName}
+              onChange={(e) => setRuleName(e.target.value)}
+              placeholder="请输入规则名称，例：核心骨干分布比例"
+              className="w-full h-8 px-3 border border-neutral-200 rounded-[4px] text-[13px] focus:outline-none focus:border-[#15B8A6] focus:ring-1 focus:ring-[#15B8A6]"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-medium text-neutral-700">
+              <span className="text-red-500 mr-1">*</span>关联对应等级规则 :
+            </span>
+            <select
+              value={selectedLevelId}
+              onChange={(e) => setSelectedLevelId(e.target.value)}
+              className="w-full h-8 px-3 border border-neutral-200 rounded-[4px] text-[13px] focus:outline-none focus:border-[#15B8A6] focus:ring-1 focus:ring-[#15B8A6] bg-white text-[#1F2937]"
+            >
+              {levelRules.map((lr) => (
+                <option key={lr.value} value={lr.value}>
+                  {lr.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-medium text-neutral-700">
+                各等级强制分布比例 (%) :
+              </span>
+              <span className={`text-[12px] font-semibold ${totalSum === 100 ? "text-emerald-600" : "text-amber-500"}`}>
+                当前比例总和: {totalSum}% (必须100%)
+              </span>
+            </div>
+
+            <div className="border border-neutral-200 rounded-[8px] overflow-hidden">
+              <table className="w-full text-[12px] text-left">
+                <thead className="bg-neutral-50 text-neutral-600 border-b border-neutral-200 font-medium font-sans">
+                  <tr>
+                    <th className="py-2 px-4 w-[120px]">等级</th>
+                    <th className="py-2 px-4">该等级限额分布比例 (%)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100 font-mono">
+                  {currentLevels.map((level) => (
+                    <tr key={level} className="hover:bg-neutral-50/50">
+                      <td className="py-2 px-4 font-semibold text-neutral-700">
+                        {level}等
+                      </td>
+                      <td className="py-2 px-4">
+                        <div className="flex items-center gap-1.5 text-neutral-500">
+                          <input
+                            type="number"
+                            value={levelRatios[level] || 0}
+                            onChange={(e) => handleRatioChange(level, Number(e.target.value))}
+                            className="w-[80px] h-7 px-2 border border-neutral-200 rounded-[4px] text-center text-[12px] focus:outline-none focus:border-[#15B8A6] font-mono"
+                          />
+                          <span>%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end px-4 py-3 bg-[#F9FAFB] border-t border-neutral-200 gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 h-8 bg-white border border-neutral-200 text-neutral-600 rounded-[4px] text-[12px] hover:bg-neutral-50 hover:text-neutral-800 font-medium transition-colors cursor-pointer"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            className="px-4 h-8 bg-[#15B8A6] text-white rounded-[4px] text-[12px] hover:bg-[#0f9688] font-semibold transition-colors cursor-pointer shadow-sm"
+          >
+            保存并应用选择
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
