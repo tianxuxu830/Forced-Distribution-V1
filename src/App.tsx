@@ -4196,6 +4196,45 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                   </div>
                                 </div>
 
+                                {/* 启用人数 */}
+                                <div className="flex items-center">
+                                  <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[4px]">
+                                    <span className="text-red-500 mr-1">*</span>
+                                    <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
+                                      启用人数:
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 max-w-[320px]">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="1"
+                                      value={activeGroupObj.enableCount !== undefined ? activeGroupObj.enableCount : 10}
+                                      onChange={(e) => {
+                                        const val = e.target.value ? parseInt(e.target.value) : 0;
+                                        const updated = currentCustomGroups.map((g, idx) =>
+                                          idx === safeActiveGroupIndex ? { ...g, enableCount: val } : g
+                                        );
+                                        setNodeCustomGroups({
+                                          ...nodeCustomGroups,
+                                          [activeNode.id]: updated
+                                        });
+                                      }}
+                                      className="w-[120px] h-[32px] px-3 border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6] bg-white text-[#1F2937]"
+                                    />
+                                    <div className="relative group flex items-center">
+                                      <HelpCircle
+                                        size={14}
+                                        className="text-[#6B7280] cursor-pointer"
+                                      />
+                                      <div className="absolute left-[100%] ml-2 top-1/2 -translate-y-1/2 hidden group-hover:block bg-[#1F2937] text-white text-[12px] px-2 py-1 rounded w-max z-[1000] shadow-lg leading-normal font-normal">
+                                        当待审核人员≥启用人数时，该强制分布规则生效；否则不生效
+                                        <div className="absolute left-[-4px] top-1/2 -translate-y-1/2 w-0 h-0 border-y-4 border-y-transparent border-r-4 border-r-[#1F2937]"></div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
                                 {/* 控制规则 */}
                                 <div className="flex items-center">
                                   <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[4px]">
@@ -4336,6 +4375,40 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                               </div>
                             </div>
 
+                            {/* 启用人数 */}
+                            <div className="flex items-center">
+                              <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
+                                <span className="text-red-500 mr-1">*</span>
+                                <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
+                                  启用人数 :
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 max-w-[320px]">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  value={activeNode.enableCount !== undefined ? activeNode.enableCount : 10}
+                                  onChange={(e) =>
+                                    updateActiveNode({
+                                      enableCount: e.target.value ? parseInt(e.target.value) : 0,
+                                    })
+                                  }
+                                  className="w-[120px] h-[32px] px-3 border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6] bg-white text-[#1F2937]"
+                                />
+                                <div className="relative group flex items-center">
+                                  <HelpCircle
+                                    size={14}
+                                    className="text-[#6B7280] cursor-pointer"
+                                  />
+                                  <div className="absolute left-[100%] ml-2 top-1/2 -translate-y-1/2 hidden group-hover:block bg-[#1F2937] text-white text-[12px] px-2 py-1 rounded w-max z-[1000] shadow-lg leading-normal font-normal">
+                                    当待审核人员≥启用人数时，该强制分布规则生效；否则不生效
+                                    <div className="absolute left-[-4px] top-1/2 -translate-y-1/2 w-0 h-0 border-y-4 border-y-transparent border-r-4 border-r-[#1F2937]"></div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
                             <div className="flex items-center">
                               <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
                                 <span className="text-red-500 mr-1">*</span>
@@ -4444,6 +4517,40 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                               onCreate={() => setShowCreateForcedRuleSimModal(true)}
                               createLabel="+ 创建强制分布规则"
                             />
+                          </div>
+
+                          {/* 启用人数 */}
+                          <div className="flex items-center">
+                            <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
+                              <span className="text-red-500 mr-1">*</span>
+                              <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
+                                启用人数 :
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 w-[320px]">
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={activeNode.enableCount !== undefined ? activeNode.enableCount : 10}
+                                onChange={(e) =>
+                                  updateActiveNode({
+                                    enableCount: e.target.value ? parseInt(e.target.value) : 0,
+                                  })
+                                }
+                                className="w-[120px] h-[32px] px-3 border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6] bg-white text-[#1F2937]"
+                              />
+                              <div className="relative group flex items-center">
+                                <HelpCircle
+                                  size={14}
+                                  className="text-[#6B7280] cursor-pointer"
+                                />
+                                <div className="absolute left-[100%] ml-2 top-1/2 -translate-y-1/2 hidden group-hover:block bg-[#1F2937] text-white text-[12px] px-2 py-1 rounded w-max z-[1000] shadow-lg leading-normal font-normal">
+                                  当待审核人员≥启用人数时，该强制分布规则生效；否则不生效
+                                  <div className="absolute left-[-4px] top-1/2 -translate-y-1/2 w-0 h-0 border-y-4 border-y-transparent border-r-4 border-r-[#1F2937]"></div>
+                                </div>
+                              </div>
+                            </div>
                           </div>
 
                           <div className="flex items-center">
