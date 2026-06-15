@@ -47,6 +47,7 @@ import {
   MoreHorizontal,
   Pencil,
   ChevronDown,
+  RefreshCw,
 } from "lucide-react";
 import ScopeConfigModal from "./components/ScopeConfigModal";
 import CustomGroupModal from "./components/CustomGroupModal";
@@ -243,6 +244,7 @@ export default function App() {
       updater: "张三",
       updateTime: "2024-03-15 10:00:00",
       status: "enabled",
+      isReferenced: true,
     },
     {
       id: 2,
@@ -253,6 +255,7 @@ export default function App() {
       updater: "李四",
       updateTime: "2024-03-14 15:30:00",
       status: "enabled",
+      isReferenced: true,
     },
     {
       id: 3,
@@ -263,6 +266,7 @@ export default function App() {
       updater: "王五",
       updateTime: "2024-03-10 09:15:00",
       status: "enabled",
+      isReferenced: false,
     },
   ]);
 
@@ -308,6 +312,7 @@ export default function App() {
         updater: "当前用户",
         updateTime: new Date().toLocaleString(),
         status: "enabled",
+        isReferenced: false,
       };
       setRulesList([newRule, ...rulesList]);
       setChangeLogs([
@@ -374,6 +379,7 @@ export default function App() {
       updater: "当前用户",
       updateTime: new Date().toLocaleString(),
       status: "enabled",
+      isReferenced: false,
     };
     setRulesList([newRule, ...rulesList]);
     setChangeLogs([
@@ -1098,6 +1104,7 @@ function LevelSettingEdit({
   const [scoreMatchRule, setScoreMatchRule] = useState(existing ? existing.rule : "disabled");
   const [tieRule, setTieRule] = useState(existing ? (existing.tieRule || "keep") : "keep");
   const [remainderRule, setRemainderRule] = useState(existing ? (existing.remainderRule || "next") : "next");
+  const [remainderSpecificLevel, setRemainderSpecificLevel] = useState(existing ? (existing.remainderSpecificLevel || "") : "");
   const [matchCoefficientEnabled, setMatchCoefficientEnabled] = useState(existing ? !!existing.matchCoefficientEnabled : false);
   const [matchCoefficientType, setMatchCoefficientType] = useState(existing ? (existing.matchCoefficientType || "fixed") : "fixed");
   const [admin, setAdmin] = useState(existing ? (existing.admin || "Yara") : "Yara");
@@ -1193,6 +1200,7 @@ function LevelSettingEdit({
                 rule: scoreMatchRule,
                 tieRule,
                 remainderRule,
+                remainderSpecificLevel,
                 matchCoefficientEnabled,
                 matchCoefficientType,
                 admin,
@@ -1220,6 +1228,7 @@ function LevelSettingEdit({
           desc: description,
           tieRule,
           remainderRule,
+          remainderSpecificLevel,
           matchCoefficientEnabled,
           matchCoefficientType,
           levels,
@@ -1544,6 +1553,28 @@ function LevelSettingEdit({
                   <option value="specific">迁移到指定等级</option>
                 </select>
               </div>
+              {remainderRule === "specific" && (
+                <div className="flex items-center mt-[-8px]">
+                  <div className="w-[180px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
+                    <span className="text-red-500 mr-1">*</span>
+                    <span className="text-[14px] text-[#4B5563]">指定等级 :</span>
+                  </div>
+                  <select
+                    value={remainderSpecificLevel}
+                    onChange={(e) => setRemainderSpecificLevel(e.target.value)}
+                    className="w-[320px] h-[32px] px-[12px] border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6]"
+                  >
+                    <option value="">请选择等级</option>
+                    {levels
+                      .filter((l) => l.name && l.name.trim() !== "")
+                      .map((l) => (
+                        <option key={l.id} value={l.name}>
+                          {l.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
             </div>
           )}
 
@@ -2303,6 +2334,8 @@ function ForcedDistributionRuleList({
     name: string;
   } | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<number[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   const [columns, setColumns] = useState([
     { key: "name", label: "规则名称", visible: true },
@@ -2330,11 +2363,18 @@ function ForcedDistributionRuleList({
     }
   };
 
+  const filteredRules = rulesList.filter((item) => {
+    if (!searchQuery) return true;
+    const matchName = item.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchDesc = item.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchName || matchDesc;
+  });
+
   const toggleAllRows = () => {
-    if (selectedRowIds.length === rulesList.length && rulesList.length > 0) {
+    if (selectedRowIds.length === filteredRules.length && filteredRules.length > 0) {
       setSelectedRowIds([]);
     } else {
-      setSelectedRowIds(rulesList.map((r) => r.id));
+      setSelectedRowIds(filteredRules.map((r) => r.id));
     }
   };
 
@@ -2355,9 +2395,9 @@ function ForcedDistributionRuleList({
 
       {/* 白色内容卡片 */}
       <div className="bg-[#FFFFFF] rounded-[8px] p-[16px] shadow-[1px_1px_4px_4px_rgba(83,84,85,0.02)] flex-1 flex flex-col">
-        {/* 头部操作区 */}
-        <div className="flex items-center justify-between mb-[16px]">
-          <div className="flex items-center gap-4">
+        {/* 头部标题与右上角配置区 (严格照图优化) */}
+        <div className="flex items-center justify-between pb-[14px] mb-[16px] border-b border-[#E5E7EB]">
+          <div className="flex items-center gap-[12px]">
             <button
               onClick={onBack}
               className="flex items-center text-[#15B8A6] hover:opacity-80 text-[14px] font-medium"
@@ -2365,73 +2405,106 @@ function ForcedDistributionRuleList({
               <ChevronRight size={16} className="rotate-180 mr-1" />
               返回
             </button>
-            <h1 className="text-[16px] font-medium text-[#1F2937] border-l border-[#E5E7EB] pl-4">
+            <h1 className="text-[16px] font-semibold text-[#1F2937] border-l border-[#E5E7EB] pl-3">
               强制分布规则
             </h1>
           </div>
-          <div className="flex items-center gap-3 relative">
+
+          <div className="flex items-center gap-5">
+            <button
+              onClick={() => setShowChangeLogModal(true)}
+              className="flex items-center gap-1.5 text-[13px] text-[#4B5563] hover:text-[#15B8A6] transition-colors cursor-pointer"
+            >
+              <History size={15} />
+              <span>变更记录</span>
+            </button>
+            
+            <div className="relative">
+              <button
+                onClick={() => setShowColumnSettings(!showColumnSettings)}
+                className="flex items-center gap-1.5 text-[13px] text-[#4B5563] hover:text-[#15B8A6] transition-colors cursor-pointer"
+              >
+                <Settings size={15} />
+                <span>设置</span>
+              </button>
+
+              {showColumnSettings && (
+                <div className="absolute right-0 top-[28px] w-[180px] bg-white border border-[#E5E7EB] rounded-[4px] shadow-lg z-20 p-2 animate-scale-in">
+                  <div className="text-[11px] font-bold text-[#9CA3AF] mb-1.5 px-2 tracking-wide uppercase">
+                    显示/隐藏列
+                  </div>
+                  {columns.map((col) => (
+                    <label
+                      key={col.key}
+                      className="flex items-center gap-2.5 px-2 py-1.5 hover:bg-[#F9FAFB] cursor-pointer rounded text-[13px] text-neutral-700 transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={col.visible}
+                        onChange={() => toggleColumn(col.key)}
+                        className="w-4 h-4 text-[#15B8A6] border-neutral-200 rounded focus:ring-[#15B8A6] accent-[#15B8A6] cursor-pointer"
+                      />
+                      <span>{col.label}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* 核心操作工具栏区 (对称美观风格优化) */}
+        <div className="flex items-center justify-between mb-[16px] bg-[#F9FAFB] p-3 rounded-[6px] border border-neutral-200/60">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onCreate}
+              className="px-[16px] h-[32px] bg-[#15B8A6] text-white rounded-[4px] text-[13px] font-medium hover:opacity-90 transition-opacity flex items-center gap-1.5 cursor-pointer shadow-sm"
+            >
+              <Plus size={14} className="stroke-[2.5px]" />
+              <span>新建规则</span>
+            </button>
+
             <button
               onClick={() => {
                 if (selectedRowIds.length > 0) {
                   setShowShareModal(true);
                 }
               }}
-              className={`px-[16px] h-[32px] border rounded-[4px] text-[14px] transition-colors flex items-center gap-1 ${
+              className={`px-[16px] h-[32px] border rounded-[4px] text-[13px] font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
                 selectedRowIds.length > 0
-                  ? "border-[#E5E7EB] bg-white text-[#1F2937] hover:bg-[#F9FAFB]"
-                  : "border-[#E5E7EB] bg-[#F9FAFB] text-[#9CA3AF] cursor-not-allowed"
+                  ? "border-[#15B8A6]/30 bg-[#E8F8F6] text-[#15B8A6] hover:opacity-95 shadow-sm"
+                  : "border-neutral-200 bg-white text-neutral-400 cursor-not-allowed hover:bg-neutral-50"
               }`}
               disabled={selectedRowIds.length === 0}
             >
-              分享权限
+              <span>分享权限</span>
             </button>
-            <button
-              onClick={() => setShowColumnSettings(!showColumnSettings)}
-              className="w-[32px] h-[32px] flex items-center justify-center border border-[#E5E7EB] rounded-[4px] text-[#4B5563] hover:bg-[#F9FAFB] transition-colors"
-            >
-              <Settings size={16} />
-            </button>
+          </div>
 
-            {showColumnSettings && (
-              <div className="absolute top-[40px] right-[100px] w-[200px] bg-white border border-[#E5E7EB] rounded-[4px] shadow-lg z-10 p-2">
-                <div className="text-[12px] font-medium text-[#6B7280] mb-2 px-2">
-                  列设置
-                </div>
-                {columns.map((col) => (
-                  <label
-                    key={col.key}
-                    className="flex items-center gap-2 px-2 py-1.5 hover:bg-[#F9FAFB] cursor-pointer rounded"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={col.visible}
-                      onChange={() => toggleColumn(col.key)}
-                      className="w-4 h-4 text-[#15B8A6] border-[#E5E7EB] rounded focus:ring-[#15B8A6]"
-                    />
-                    <span className="text-[13px] text-[#4B5563]">
-                      {col.label}
-                    </span>
-                  </label>
-                ))}
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="搜索规则名称..."
+                className="w-[220px] h-[32px] pl-[12px] pr-[32px] border border-neutral-200 rounded-[4px] text-[13px] bg-white text-[#1F2937] placeholder-neutral-400 focus:outline-[#15B8A6] focus:border-[#15B8A6] focus:ring-1 focus:ring-[#15B8A6]/20 transition-all font-sans"
+              />
+              <Search size={14} className="absolute right-[10px] top-[9px] text-neutral-400 pointer-events-none" />
+            </div>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="text-[13px] text-neutral-500 hover:text-[#15B8A6] transition-colors font-medium cursor-pointer"
+              >
+                重置
+              </button>
             )}
-
-            <button
-              onClick={() => setShowChangeLogModal(true)}
-              className="px-[16px] h-[32px] border border-[#E5E7EB] bg-[#FFFFFF] text-[#4B5563] hover:bg-[#F9FAFB] rounded-[4px] text-[14px] transition-colors flex items-center gap-1"
-            >
-              <History size={16} /> 变更记录
-            </button>
-            <button
-              onClick={onCreate}
-              className="px-[16px] h-[32px] bg-[#15B8A6] text-white rounded-[4px] text-[14px] hover:bg-[#15B8A6]/90 transition-colors flex items-center gap-1"
-            >
-              <Plus size={16} /> 新建规则
-            </button>
           </div>
         </div>
 
-        {/* 列表区 */}
+        {/* 续：列表表格展示区 */}
         <div className="border border-[#E5E7EB] rounded-[4px] overflow-hidden flex-1 flex flex-col">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -2439,10 +2512,10 @@ function ForcedDistributionRuleList({
                 <th className="py-[12px] px-[16px] w-[50px] text-center">
                   <input
                     type="checkbox"
-                    className="w-4 h-4 text-[#15B8A6] border-[#E5E7EB] rounded focus:ring-[#15B8A6]"
+                    className="w-4 h-4 text-[#15B8A6] border-neutral-200 rounded focus:ring-[#15B8A6] accent-[#15B8A6] cursor-pointer"
                     checked={
-                      selectedRowIds.length === rulesList.length &&
-                      rulesList.length > 0
+                      selectedRowIds.length === filteredRules.length &&
+                      filteredRules.length > 0
                     }
                     onChange={toggleAllRows}
                   />
@@ -2452,7 +2525,7 @@ function ForcedDistributionRuleList({
                     col.visible && (
                       <th
                         key={col.key}
-                        className={`py-[12px] px-[16px] text-[13px] font-medium text-[#4B5563] ${col.key === "actions" ? "w-[180px]" : ""}`}
+                        className={`py-[12px] px-[16px] text-[13px] font-medium text-[#4B5563] ${col.key === "actions" ? "w-[200px]" : ""}`}
                       >
                         {col.label}
                       </th>
@@ -2461,109 +2534,170 @@ function ForcedDistributionRuleList({
               </tr>
             </thead>
             <tbody>
-              {rulesList.map((item) => (
-                <tr
-                  key={item.id}
-                  className="border-b border-[#E5E7EB] hover:bg-[#F9FAFB]/50 transition-colors"
-                >
-                  <td className="py-[12px] px-[16px] w-[50px] text-center">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 text-[#15B8A6] border-[#E5E7EB] rounded focus:ring-[#15B8A6]"
-                      checked={selectedRowIds.includes(item.id)}
-                      onChange={() => toggleRowSelection(item.id)}
-                    />
-                  </td>
-                  {columns.find((c) => c.key === "name")?.visible && (
-                    <td className="py-[12px] px-[16px] text-[13px] text-[#1F2937]">
-                      {item.name}
+              {filteredRules.map((item) => {
+                const isSelected = selectedRowIds.includes(item.id);
+                return (
+                  <tr
+                    key={item.id}
+                    className={`border-b border-[#E5E7EB] transition-colors ${
+                      isSelected ? "bg-[#15B8A6]/5 hover:bg-[#15B8A6]/10" : "hover:bg-[#F9FAFB]/50"
+                    }`}
+                  >
+                    <td className="py-[12px] px-[16px] w-[50px] text-center">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 text-[#15B8A6] border-neutral-200 rounded focus:ring-[#15B8A6] accent-[#15B8A6] cursor-pointer"
+                        checked={isSelected}
+                        onChange={() => toggleRowSelection(item.id)}
+                      />
                     </td>
-                  )}
-                  {columns.find((c) => c.key === "description")?.visible && (
-                    <td
-                      className="py-[12px] px-[16px] text-[13px] text-[#4B5563] max-w-[200px] truncate"
-                      title={item.description}
-                    >
-                      {item.description || "-"}
-                    </td>
-                  )}
-                  {columns.find((c) => c.key === "levelRule")?.visible && (
-                    <td className="py-[12px] px-[16px] text-[13px] text-[#4B5563]">
-                      {item.levelRule}
-                    </td>
-                  )}
-                  {columns.find((c) => c.key === "status")?.visible && (
-                    <td className="py-[12px] px-[16px] text-[13px]">
-                      <button
-                        onClick={() => onToggleStatus(item.id)}
-                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#15B8A6] focus:ring-offset-2 ${item.status === "enabled" ? "bg-[#15B8A6]" : "bg-gray-200"}`}
-                        role="switch"
-                        aria-checked={item.status === "enabled"}
+                    {columns.find((c) => c.key === "name")?.visible && (
+                      <td className="py-[12px] px-[16px] text-[13px] text-[#1F2937] font-medium">
+                        {item.name}
+                      </td>
+                    )}
+                    {columns.find((c) => c.key === "description")?.visible && (
+                      <td
+                        className="py-[12px] px-[16px] text-[13px] text-[#4B5563] max-w-[200px] truncate"
+                        title={item.description}
                       >
-                        <span
-                          aria-hidden="true"
-                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${item.status === "enabled" ? "translate-x-2" : "-translate-x-2"}`}
-                        />
-                      </button>
-                    </td>
-                  )}
-                  {columns.find((c) => c.key === "updater")?.visible && (
-                    <td className="py-[12px] px-[16px] text-[13px] text-[#4B5563]">
-                      {item.updater || "-"}
-                    </td>
-                  )}
-                  {columns.find((c) => c.key === "updateTime")?.visible && (
-                    <td className="py-[12px] px-[16px] text-[13px] text-[#4B5563]">
-                      {item.updateTime}
-                    </td>
-                  )}
-                  {columns.find((c) => c.key === "actions")?.visible && (
-                    <td className="py-[12px] px-[16px] text-[13px]">
-                      <button
-                        onClick={() => onEdit(item)}
-                        className="text-[#15B8A6] hover:opacity-80 mr-[12px]"
-                      >
-                        编辑
-                      </button>
-                      <button
-                        onClick={() =>
-                          setCopyModalData({ id: item.id, name: item.name })
-                        }
-                        className="text-[#15B8A6] hover:opacity-80 mr-[12px]"
-                      >
-                        复制
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedRuleName(item.name);
-                          setShowUsageModal(true);
-                        }}
-                        className="text-[#15B8A6] hover:opacity-80 mr-[12px]"
-                      >
-                        引用情况
-                      </button>
-                      <button
-                        onClick={() => onDelete && onDelete(item.id)}
-                        className="text-[#FF4D4F] hover:opacity-80"
-                      >
-                        删除
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {rulesList.length === 0 && (
+                        {item.description || "-"}
+                      </td>
+                    )}
+                    {columns.find((c) => c.key === "levelRule")?.visible && (
+                      <td className="py-[12px] px-[16px] text-[13px] text-[#4B5563]">
+                        {item.levelRule}
+                      </td>
+                    )}
+                    {columns.find((c) => c.key === "status")?.visible && (
+                      <td className="py-[12px] px-[16px] text-[13px]">
+                        <button
+                          onClick={() => onToggleStatus(item.id)}
+                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#15B8A6] focus:ring-offset-2 ${item.status === "enabled" ? "bg-[#15B8A6]" : "bg-gray-200"}`}
+                          role="switch"
+                          aria-checked={item.status === "enabled"}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${item.status === "enabled" ? "translate-x-2" : "-translate-x-2"}`}
+                          />
+                        </button>
+                      </td>
+                    )}
+                    {columns.find((c) => c.key === "updater")?.visible && (
+                      <td className="py-[12px] px-[16px] text-[13px] text-[#4B5563]">
+                        {item.updater || "-"}
+                      </td>
+                    )}
+                    {columns.find((c) => c.key === "updateTime")?.visible && (
+                      <td className="py-[12px] px-[16px] text-[13px] text-[#4B5563]">
+                        {item.updateTime}
+                      </td>
+                    )}
+                    {columns.find((c) => c.key === "actions")?.visible && (
+                      <td className="py-[12px] px-[16px] text-[13px]">
+                        <button
+                          onClick={() => onEdit(item)}
+                          className="text-[#15B8A6] hover:opacity-80 mr-[12px] font-medium"
+                        >
+                          编辑
+                        </button>
+                        <button
+                          onClick={() =>
+                            setCopyModalData({ id: item.id, name: item.name })
+                          }
+                          className="text-[#15B8A6] hover:opacity-80 mr-[12px] font-medium"
+                        >
+                          复制
+                        </button>
+                        {item.isReferenced ? (
+                          <button
+                            onClick={() => {
+                              setSelectedRuleName(item.name);
+                              setShowUsageModal(true);
+                            }}
+                            className="text-[#15B8A6] hover:opacity-80 mr-[12px] font-medium"
+                          >
+                            引用情况
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setDeleteConfirmId(item.id)}
+                            className="text-[#FF4D4F] hover:opacity-80 font-medium cursor-pointer"
+                          >
+                            删除
+                          </button>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+              {filteredRules.length === 0 && (
                 <tr>
                   <td
                     colSpan={columns.filter((c) => c.visible).length}
-                    className="py-[32px] text-center text-[13px] text-[#9CA3AF]"
+                    className="py-[48px] text-center text-[13px] text-[#9CA3AF]"
                   >
-                    暂无数据
+                    未找到相关的强制分布规则
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* 底部信息栏与分页组件 (与图片一致) */}
+        <div className="flex items-center justify-between mt-[16px] pt-[12px] border-t border-[#E5E7EB] font-sans">
+          <div className="flex items-center gap-3">
+            <span className="text-[13px] text-[#4B5563]">共 {filteredRules.length} 条</span>
+            {selectedRowIds.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[#E8F8F6] text-[#15B8A6] border border-[#15B8A6]/20 rounded-[4px] text-[12px] font-medium animate-fade-in select-none">
+                <span>已选 <strong className="font-bold">{selectedRowIds.length}</strong> 项</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRowIds([])}
+                  className="text-[#15B8A6] hover:text-[#119A8A] font-bold text-[14px] leading-3 cursor-pointer ml-0.5"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2 text-[13px] text-[#4B5563]">
+            {/* 分页按钮 */}
+            <button className="w-[28px] h-[28px] flex items-center justify-center border border-[#E5E7EB] rounded-[4px] bg-white hover:bg-[#F9FAFB] transition-colors disabled:opacity-50 cursor-pointer" disabled>
+              &lt;
+            </button>
+            <button className="w-[28px] h-[28px] flex items-center justify-center border border-[#15B8A6] bg-white text-[#15B8A6] font-medium rounded-[4px] cursor-pointer">
+              1
+            </button>
+            <button className="w-[28px] h-[28px] flex items-center justify-center border border-[#E5E7EB] bg-white hover:bg-[#F9FAFB] rounded-[4px] transition-colors cursor-pointer">
+              2
+            </button>
+            <button className="w-[28px] h-[28px] flex items-center justify-center border border-[#E5E7EB] bg-white hover:bg-[#F9FAFB] rounded-[4px] transition-colors cursor-pointer">
+              3
+            </button>
+            <span className="px-1 text-gray-400">...</span>
+            <button className="w-[28px] h-[28px] flex items-center justify-center border border-[#E5E7EB] bg-white hover:bg-[#F9FAFB] rounded-[4px] transition-colors cursor-pointer">
+              10
+            </button>
+            <button className="w-[28px] h-[28px] flex items-center justify-center border border-[#E5E7EB] bg-white hover:bg-[#F9FAFB] rounded-[4px] transition-colors cursor-pointer">
+              &gt;
+            </button>
+            
+            <div className="flex items-center gap-1.5 ml-2 border border-[#E5E7EB] rounded-[4px] bg-white h-[28px] px-2 text-[12px] cursor-pointer hover:bg-[#F9FAFB]">
+              <span>10 条/页</span>
+              <ChevronDown size={12} className="text-gray-400" />
+            </div>
+
+            <div className="flex items-center gap-1 ml-2 text-neutral-500">
+              <span>跳转</span>
+              <input type="text" defaultValue="1" className="w-[32px] h-[28px] border border-[#E5E7EB] rounded-[4px] text-center text-[12px] focus:outline-none focus:border-[#15B8A6]" />
+              <span>页</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2601,6 +2735,40 @@ function ForcedDistributionRuleList({
             }
           }}
         />
+      )}
+
+      {deleteConfirmId !== null && (
+        <div className="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[8px] w-[360px] shadow-[1px_1px_4px_4px_rgba(83,84,85,0.02)] flex flex-col p-[20px] animate-scale-in">
+            <h3 className="text-[15px] font-bold text-[#1F2937] mb-3">
+              提示
+            </h3>
+            <p className="text-[14px] text-[#4B5563] mb-6 font-medium">
+              确认删除规则吗？
+            </p>
+            <div className="flex items-center justify-end gap-3 font-sans">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmId(null)}
+                className="px-[16px] h-[32px] bg-white border border-[#E1E2E4] rounded-[4px] text-[13px] text-[#4B5563] hover:bg-[#F9FAFB] cursor-pointer"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onDelete && deleteConfirmId !== null) {
+                    onDelete(deleteConfirmId);
+                  }
+                  setDeleteConfirmId(null);
+                }}
+                className="px-[16px] h-[32px] bg-[#15B8A6] rounded-[4px] text-[13px] text-white hover:opacity-90 font-medium cursor-pointer"
+              >
+                确认
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
@@ -3082,7 +3250,11 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
   const [showRankScopeModal, setShowRankScopeModal] = useState(false);
   const [showCustomGroupModal, setShowCustomGroupModal] = useState(false);
   const [nodeCustomGroups, setNodeCustomGroups] = useState<Record<string, any[]>>({});
-  const [selectedLevelRule, setSelectedLevelRule] = useState("");
+  const [openSelectUsersModalIndex, setOpenSelectUsersModalIndex] = useState<number | null>(null);
+  const [openDropdownGroupIdx, setOpenDropdownGroupIdx] = useState<number | null>(null);
+  const [localToast, setLocalToast] = useState("");
+  const ALL_MOCK_USERS = ["张伟", "李娜", "王敏", "刘洋", "陈静", "杨智", "黄波", "赵磊", "周杰", "徐林", "吴珍", "孙娜", "赵勇", "李丽", "王刚", "郑凯", "高超", "周婷"];
+  const [selectedLevelRule, setSelectedLevelRule] = useState("4.29");
   const [showCreateLevelRuleSimModal, setShowCreateLevelRuleSimModal] = useState(false);
   const [showCreateForcedRuleSimModal, setShowCreateForcedRuleSimModal] = useState(false);
   const [levelRuleOptions, setLevelRuleOptions] = useState([
@@ -3241,6 +3413,23 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
     );
   };
 
+  const getCustomGroupsForNode = () => {
+    if (!nodeCustomGroups[activeNode.id] || nodeCustomGroups[activeNode.id].length === 0) {
+      return [
+        { 
+          id: 1, 
+          name: "绩效组1", 
+          users: ["张伟", "李娜", "王敏"], 
+          forcedRuleId: "default", 
+          controlRule: "ratio", 
+          remainderRule: "next", 
+          remainderSpecificLevel: "A" 
+        }
+      ];
+    }
+    return nodeCustomGroups[activeNode.id];
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#F9FAFB] font-sans text-[#1F2937]">
       <div className="h-[48px] px-[24px] bg-white flex items-center justify-between border-b border-[#E5E7EB] shrink-0">
@@ -3324,35 +3513,29 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                         等级规则 :
                       </span>
                     </div>
-                    {levelRuleType === "rank" ? (
-                      <CustomSelect
-                        options={levelRuleOptions}
-                        value={selectedLevelRule}
-                        onChange={(val) => {
-                          setSelectedLevelRule(val);
-                          const ratios = levelRulesMap[val];
-                          if (ratios) {
-                            setRankRatios(ratios);
-                          } else {
-                            // default fallback
-                            setRankRatios([
-                              { name: "S", min: 0, max: 10 },
-                              { name: "A", min: 10, max: 30 },
-                              { name: "B", min: 30, max: 90 },
-                              { name: "C", min: 90, max: 100 },
-                            ]);
-                          }
-                        }}
-                        placeholder="请选择等级规则"
-                        className="w-full max-w-[320px]"
-                        onCreate={() => setShowCreateLevelRuleSimModal(true)}
-                        createLabel="+ 创建等级规则"
-                      />
-                    ) : (
-                      <div className="h-[32px] flex items-center px-[8px] bg-[#F3F4F6] border border-[#E5E7EB] rounded-[4px] text-[14px] text-[#6B7280] cursor-not-allowed w-full max-w-[320px]">
-                        4.29
-                      </div>
-                    )}
+                    <CustomSelect
+                      options={levelRuleOptions}
+                      value={selectedLevelRule}
+                      onChange={(val) => {
+                        setSelectedLevelRule(val);
+                        const ratios = levelRulesMap[val];
+                        if (ratios) {
+                          setRankRatios(ratios);
+                        } else {
+                          // default fallback
+                          setRankRatios([
+                            { name: "S", min: 0, max: 10 },
+                            { name: "A", min: 10, max: 30 },
+                            { name: "B", min: 30, max: 90 },
+                            { name: "C", min: 90, max: 100 },
+                          ]);
+                        }
+                      }}
+                      placeholder="请选择等级规则"
+                      className="w-full max-w-[320px]"
+                      onCreate={() => setShowCreateLevelRuleSimModal(true)}
+                      createLabel="+ 创建等级规则"
+                    />
                   </div>
 
                   {levelRuleType === "rank" && selectedLevelRule !== "" && (
@@ -3441,11 +3624,39 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                 >
                                   调整排名比例
                                 </button>
+                              ) : levelRuleType === "rank" && rankScope !== "all" ? (
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setTempRankRatios([...rankRatios]);
+                                      setTempSameScoreRule(sameScoreRule);
+                                      setTempRemainderRule(remainderRule);
+                                      setTempRemainderSpecificLevel(remainderSpecificLevel);
+                                      setIsBatchEditingRatios(true);
+                                    }}
+                                    className="text-[13.5px] text-[#15B8A6] hover:opacity-85 font-semibold cursor-pointer flex items-center gap-1 border border-[#15B8A6]/20 bg-teal-50/20 hover:bg-teal-50 px-2 py-1 rounded"
+                                  >
+                                    <SlidersHorizontal size={13} />
+                                    调整通用比例
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setDrawerViewMode("group");
+                                      setShowBreakdownDrawer(true);
+                                    }}
+                                    className="text-[13px] text-[#15B8A6] hover:opacity-85 font-semibold cursor-pointer flex items-center gap-1 border border-[#15B8A6]/20 bg-teal-50/20 hover:bg-teal-50 px-2 py-1 rounded"
+                                  >
+                                    <Users size={13} />
+                                    按绩效组调整
+                                  </button>
+                                </div>
                               ) : (
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setDrawerViewMode((levelRuleType === "rank" && rankScope !== "all") ? "group" : "config");
+                                    setDrawerViewMode("config");
                                     setShowBreakdownDrawer(true);
                                   }}
                                   className="flex items-center gap-1.5 text-[13px] text-[#15B8A6] hover:opacity-85 font-semibold cursor-pointer"
@@ -3462,39 +3673,6 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                   <th className="py-2.5 px-4 font-semibold text-[#4B5563] w-[280px]">
                                     <div className="flex items-center gap-2">
                                       <span>排名比例</span>
-                                      {levelRuleType === "rank" && (
-                                        rankScope === "all" ? (
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setTempRankRatios([...rankRatios]);
-                                              setTempSameScoreRule(sameScoreRule);
-                                              setTempRemainderRule(remainderRule);
-                                              setTempRemainderSpecificLevel(remainderSpecificLevel);
-                                              setIsBatchEditingRatios(true);
-                                            }}
-                                            className="text-[#15B8A6] hover:text-[#0f9688] ml-2 flex items-center justify-center p-1 rounded hover:bg-teal-50 transition-colors cursor-pointer border border-transparent"
-                                            title="调整排名比例"
-                                          >
-                                            <Pencil size={12} className="text-[#15B8A6]" />
-                                          </button>
-                                        ) : (
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setTempRankRatios([...rankRatios]);
-                                              setTempSameScoreRule(sameScoreRule);
-                                              setTempRemainderRule(remainderRule);
-                                              setTempRemainderSpecificLevel(remainderSpecificLevel);
-                                              setIsBatchEditingRatios(true);
-                                            }}
-                                            className="text-[11px] text-[#15B8A6] hover:text-[#0f9688] font-semibold flex items-center gap-0.5 cursor-pointer border border-[#15B8A6]/20 bg-[#15B8A6]/5 hover:bg-[#15B8A6]/10 px-2 py-0.5 rounded transition-all font-sans shrink-0 ml-1.5"
-                                          >
-                                            <SlidersHorizontal size={11} />
-                                            调整排名比例
-                                          </button>
-                                        )
-                                      )}
                                     </div>
                                   </th>
                                   {rankScope === "all" ? (
@@ -3531,22 +3709,8 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                             return acc + Math.round((pctForGroup * g.size) / 100);
                                           }, 0);
                                           return (
-                                            <td className="py-2.5 px-4 text-right">
-                                              <button
-                                                type="button"
-                                                onClick={() => {
-                                                  setSelectedRatioName(ratio.name);
-                                                  setDrawerViewMode("level");
-                                                  setShowBreakdownDrawer(true);
-                                                }}
-                                                className="inline-flex items-center gap-1.5 text-[#15B8A6] hover:opacity-85 font-semibold bg-teal-50/50 hover:bg-teal-50 px-2 py-1 rounded border border-[#15B8A6]/20 transition-all cursor-pointer font-sans"
-                                              >
-                                                <span>{sumExpected}人</span>
-                                                <span className="text-[11px] text-[#4B5563] font-normal flex items-center gap-0.5 border-l border-[#15B8A6]/20 pl-1.5 ml-1 select-none">
-                                                  各组明细
-                                                  <ChevronRight size={12} />
-                                                </span>
-                                              </button>
+                                            <td className="py-2.5 px-4 text-right font-semibold text-[#15B8A6]">
+                                              {sumExpected}人
                                             </td>
                                           );
                                         })()
@@ -3575,19 +3739,6 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                   </span>
                                 )}
                               </div>
-                              {rankScope !== "all" && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setDrawerViewMode((levelRuleType === "rank" && rankScope !== "all") ? "group" : "config");
-                                    setShowBreakdownDrawer(true);
-                                  }}
-                                  className="text-[#15B8A6] hover:text-[#0f9688] font-semibold flex items-center gap-1 transition-colors cursor-pointer text-left self-start sm:self-auto font-sans"
-                                >
-                                  <SlidersHorizontal size={12} />
-                                  详细配置
-                                </button>
-                              )}
                             </div>
                           </div>
                         </div>
@@ -3770,51 +3921,6 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                               </div>
                             </div>
                           )}
-
-                          {activeNode.controlScope === "group" && activeNode.groupMethod === "custom" && (
-                            <div className="flex items-start">
-                              <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[6px]">
-                                <span className="text-red-500 mr-1">*</span>
-                                <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
-                                  自定义分组 :
-                                </span>
-                              </div>
-                              <div className="flex flex-col gap-2 pt-[6px]">
-                                <div className="flex items-center gap-3">
-                                  <button
-                                    onClick={() => setShowCustomGroupModal(true)}
-                                    type="button"
-                                    className="text-[#15B8A6] text-[14px] font-medium hover:opacity-80 flex items-center gap-1 border border-[#15B8A6]/20 bg-[#15B8A6]/5 px-3 h-[32px] rounded-[4px] cursor-pointer"
-                                  >
-                                    配置自定义分组
-                                  </button>
-                                  {nodeCustomGroups[activeNode.id] && nodeCustomGroups[activeNode.id].length > 0 ? (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                      已配置
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                                      未配置
-                                    </span>
-                                  )}
-                                </div>
-                                {nodeCustomGroups[activeNode.id] && nodeCustomGroups[activeNode.id].length > 0 && (
-                                  <div className="flex flex-wrap gap-2 mt-1 max-w-[500px]">
-                                    {nodeCustomGroups[activeNode.id].map((g, gi) => (
-                                      <div key={gi} className="inline-flex items-center gap-2 px-3 py-1 bg-white border border-[#E5E7EB] rounded-[4px] text-[13px] text-[#4B5563] shadow-sm">
-                                        <span className="font-medium text-[#111827]">{g.name}</span>
-                                        <span className="text-[#9CA3AF] text-[11px] bg-[#F3F4F6] px-1.5 py-0.5 rounded">
-                                          {(g.users && g.users.length) || 0}人
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
                         </div>
                       )}
 
@@ -3859,7 +3965,339 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                         <span className="text-[14px] font-bold text-[#1F2937]">强制分布明细设置</span>
                       </div>
 
-                      {showGroupSplit ? (
+                      {levelRuleType !== "none" && activeNode.controlScope === "group" && activeNode.groupMethod === "custom" ? (
+                        (() => {
+                          const currentCustomGroups = getCustomGroupsForNode();
+                          const safeActiveGroupIndex = activeGroupIndex < currentCustomGroups.length ? activeGroupIndex : 0;
+                          const activeGroupObj = currentCustomGroups[safeActiveGroupIndex] || currentCustomGroups[0];
+                          return (
+                            <div className="flex border border-[#E5E7EB] rounded-[8px] overflow-hidden bg-white mt-2 shadow-sm font-sans">
+                              {/* Left Panel: 绩效组 list */}
+                              <div className="w-[200px] border-r border-[#E5E7EB] flex flex-col bg-[#F9FAFB] shrink-0">
+                                <div className="p-3 text-[14px] font-medium border-b border-[#E5E7EB] text-[#4B5563] flex justify-between items-center bg-[#F9FAFB]">
+                                  <span>绩效组</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const nextNum = currentCustomGroups.length + 1;
+                                      const nextGrp = {
+                                        id: Date.now(),
+                                        name: `绩效组${nextNum}`,
+                                        users: [],
+                                        forcedRuleId: "default",
+                                        controlRule: "ratio",
+                                        remainderRule: "next",
+                                        remainderSpecificLevel: "A"
+                                      };
+                                      const nextList = [...currentCustomGroups, nextGrp];
+                                      setNodeCustomGroups({
+                                        ...nodeCustomGroups,
+                                        [activeNode.id]: nextList
+                                      });
+                                      setActiveGroupIndex(nextList.length - 1);
+                                    }}
+                                    className="text-[#15B8A6] hover:opacity-85 font-medium text-[13px] flex items-center gap-0.5 cursor-pointer border border-[#15B8A6]/20 bg-[#15B8A6]/5 px-2 py-0.5 rounded transition-all"
+                                  >
+                                    <Plus size={12} />
+                                    添加
+                                  </button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto">
+                                  {currentCustomGroups.map((g, idx) => (
+                                    <div
+                                      key={g.id || idx}
+                                      onClick={() => setActiveGroupIndex(idx)}
+                                      className={`px-4 py-3 text-[13px] cursor-pointer flex justify-between items-center transition-colors relative group/row ${safeActiveGroupIndex === idx ? 'bg-[#E8F8F6] text-[#15B8A6] font-medium after:content-[""] after:absolute after:left-0 after:top-0 after:bottom-0 after:w-[3px] after:bg-[#15B8A6]' : "text-[#4B5563] hover:bg-[#F3F4F6]"}`}
+                                    >
+                                      <span className="truncate pr-2">{g.name}</span>
+                                      {currentCustomGroups.length > 1 && (
+                                        <div className="relative shrink-0">
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setOpenDropdownGroupIdx(openDropdownGroupIdx === idx ? null : idx);
+                                            }}
+                                            className={`text-[#15B8A6] p-1 rounded hover:bg-neutral-100 transition-colors cursor-pointer flex items-center justify-center ${openDropdownGroupIdx === idx ? 'bg-[#15B8A6]/10 opacity-100' : 'opacity-0 group-hover/row:opacity-100'}`}
+                                            title="更多操作"
+                                          >
+                                            <MoreHorizontal size={14} />
+                                          </button>
+
+                                          {openDropdownGroupIdx === idx && (
+                                            <>
+                                              <div
+                                                className="fixed inset-0 z-[140] cursor-default"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setOpenDropdownGroupIdx(null);
+                                                }}
+                                              />
+                                              <div className="absolute right-0 mt-1 w-[100px] bg-white border border-neutral-200 rounded-[4px] shadow-lg py-1 z-[150] font-sans text-left">
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setOpenDropdownGroupIdx(null);
+                                                    const sourceGrp = g;
+                                                    const updatedList = currentCustomGroups.map((item) => {
+                                                      if (item.id === sourceGrp.id) return item;
+                                                      return {
+                                                        ...item,
+                                                        forcedRuleId: sourceGrp.forcedRuleId,
+                                                        controlRule: sourceGrp.controlRule,
+                                                        remainderRule: sourceGrp.remainderRule,
+                                                        remainderSpecificLevel: sourceGrp.remainderSpecificLevel
+                                                      };
+                                                    });
+                                                    setNodeCustomGroups({
+                                                      ...nodeCustomGroups,
+                                                      [activeNode.id]: updatedList
+                                                    });
+                                                    setLocalToast(`已将“${sourceGrp.name}”的设置同步到其他绩效组！`);
+                                                    setTimeout(() => setLocalToast(""), 3000);
+                                                  }}
+                                                  className="w-full text-left px-3 py-1.5 text-[12px] text-neutral-600 hover:bg-[#E8F8F6] hover:text-[#15B8A6] transition-colors flex items-center gap-1.5 cursor-pointer font-normal border-b border-neutral-100"
+                                                >
+                                                  <RefreshCw size={11} className="text-[#15B8A6] shrink-0 animate-spin-hover" />
+                                                  <span>同步设置</span>
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setOpenDropdownGroupIdx(null);
+                                                    const nextList = currentCustomGroups.filter((_, i) => i !== idx);
+                                                    setNodeCustomGroups({
+                                                      ...nodeCustomGroups,
+                                                      [activeNode.id]: nextList
+                                                    });
+                                                    if (safeActiveGroupIndex === idx) {
+                                                      setActiveGroupIndex(Math.max(0, nextList.length - 1));
+                                                    } else if (safeActiveGroupIndex > idx) {
+                                                      setActiveGroupIndex(safeActiveGroupIndex - 1);
+                                                    }
+                                                  }}
+                                                  className="w-full text-left px-3 py-1.5 text-[12px] text-red-500 hover:bg-red-50 transition-colors flex items-center gap-1.5 cursor-pointer font-normal"
+                                                >
+                                                  <Trash2 size={11} className="text-red-500 shrink-0" />
+                                                  <span>删除</span>
+                                                </button>
+                                              </div>
+                                            </>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Right Panel: Selected Custom Group Form Config */}
+                              <div className="flex-1 p-6 flex flex-col gap-[20px] bg-white">
+                                {/* 绩效组名称 */}
+                                <div className="flex items-center">
+                                  <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[2px]">
+                                    <span className="text-red-500 mr-1">*</span>
+                                    <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
+                                      绩效组名称:
+                                    </span>
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={activeGroupObj.name}
+                                    onChange={(e) => {
+                                      const updated = currentCustomGroups.map((g, idx) =>
+                                        idx === safeActiveGroupIndex ? { ...g, name: e.target.value } : g
+                                      );
+                                      setNodeCustomGroups({
+                                        ...nodeCustomGroups,
+                                        [activeNode.id]: updated
+                                      });
+                                    }}
+                                    className="w-full max-w-[320px] h-[32px] px-3 border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6] bg-white text-[#1F2937]"
+                                    placeholder="请输入绩效组名称"
+                                  />
+                                </div>
+
+                                {/* 选择员工 */}
+                                <div className="flex items-start">
+                                  <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[6px]">
+                                    <span className="text-red-500 mr-1">*</span>
+                                    <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
+                                      选择员工:
+                                    </span>
+                                  </div>
+                                  <div className="flex-1 max-w-[500px]">
+                                    <div className="flex flex-col gap-1.5">
+                                      <div
+                                        onClick={() => setOpenSelectUsersModalIndex(safeActiveGroupIndex)}
+                                        className="w-full min-h-[64px] p-2 border border-[#E5E7EB] bg-white rounded-[4px] text-[13px] flex flex-wrap gap-1.5 items-center cursor-pointer hover:border-[#15B8A6] transition-colors"
+                                      >
+                                        {activeGroupObj.users && activeGroupObj.users.length > 0 ? (
+                                          activeGroupObj.users.map((username, uindex) => (
+                                            <span key={uindex} className="inline-flex items-center gap-1 bg-[#F3F4F6] text-[#374151] px-2 py-0.5 rounded-[4px] text-[12px] select-none">
+                                              {username}
+                                              <span 
+                                                className="text-neutral-400 hover:text-red-500 font-bold ml-0.5 cursor-pointer"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  const filteredUsers = activeGroupObj.users.filter((item) => item !== username);
+                                                  const updated = currentCustomGroups.map((g, idx) =>
+                                                    idx === safeActiveGroupIndex ? { ...g, users: filteredUsers } : g
+                                                  );
+                                                  setNodeCustomGroups({
+                                                    ...nodeCustomGroups,
+                                                    [activeNode.id]: updated
+                                                  });
+                                                }}
+                                              >
+                                                ×
+                                              </span>
+                                            </span>
+                                          ))
+                                        ) : (
+                                          <span className="text-neutral-400 pl-1 select-none">请选择员工</span>
+                                        )}
+                                      </div>
+                                      <div className="text-[12px] text-[#6B7280] text-right">
+                                        当前已选：<span className="font-semibold text-[#15B8A6]">{activeGroupObj.users?.length || 0}</span>人
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* 强制分布规则 */}
+                                <div className="flex items-center">
+                                  <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[4px]">
+                                    <span className="text-red-500 mr-1">*</span>
+                                    <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
+                                      强制分布规则:
+                                    </span>
+                                  </div>
+                                  <div className="flex-1 max-w-[320px]">
+                                    <CustomSelect
+                                      options={simForcedRules}
+                                      value={activeGroupObj.forcedRuleId || "default"}
+                                      onChange={(val) => {
+                                        const updated = currentCustomGroups.map((g, idx) =>
+                                          idx === safeActiveGroupIndex ? { ...g, forcedRuleId: val } : g
+                                        );
+                                        setNodeCustomGroups({
+                                          ...nodeCustomGroups,
+                                          [activeNode.id]: updated
+                                        });
+                                      }}
+                                      placeholder="请选择"
+                                      className="w-full"
+                                      onCreate={() => setShowCreateForcedRuleSimModal(true)}
+                                      createLabel="+ 创建强制分布规则"
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* 控制规则 */}
+                                <div className="flex items-center">
+                                  <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[4px]">
+                                    <span className="text-red-500 mr-1">*</span>
+                                    <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
+                                      控制规则:
+                                    </span>
+                                  </div>
+                                  <select
+                                    value={activeGroupObj.controlRule || "ratio"}
+                                    onChange={(e) => {
+                                      const updated = currentCustomGroups.map((g, idx) =>
+                                        idx === safeActiveGroupIndex ? { ...g, controlRule: e.target.value } : g
+                                      );
+                                      setNodeCustomGroups({
+                                        ...nodeCustomGroups,
+                                        [activeNode.id]: updated
+                                      });
+                                    }}
+                                    className="w-full max-w-[320px] h-[32px] px-[12px] border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6] bg-white text-[#1F2937]"
+                                  >
+                                    <option value="ratio">按等级分布比例</option>
+                                    <option value="number">按等级分布人数</option>
+                                  </select>
+                                </div>
+
+                                {/* 余数处理 */}
+                                {(activeGroupObj.controlRule || "ratio") === "ratio" && (
+                                  <>
+                                    <div className="flex items-center">
+                                      <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[4px]">
+                                        <span className="text-red-500 mr-1">*</span>
+                                        <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
+                                          余数处理:
+                                        </span>
+                                      </div>
+                                      <select
+                                        value={activeGroupObj.remainderRule || "next"}
+                                        onChange={(e) => {
+                                          const updated = currentCustomGroups.map((g, idx) =>
+                                            idx === safeActiveGroupIndex ? { ...g, remainderRule: e.target.value } : g
+                                          );
+                                          setNodeCustomGroups({
+                                            ...nodeCustomGroups,
+                                            [activeNode.id]: updated
+                                          });
+                                        }}
+                                        className="w-full max-w-[320px] h-[32px] px-[12px] border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6] bg-white text-[#1F2937]"
+                                      >
+                                        <option value="next">迁移到下一等级</option>
+                                        <option value="specific">迁移到指定等级</option>
+                                      </select>
+                                    </div>
+
+                                    {(activeGroupObj.remainderRule || "next") === "specific" && (
+                                      <div className="flex items-center text-[#1F2937]">
+                                        <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[4px]">
+                                          <span className="text-red-500 mr-1">*</span>
+                                          <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
+                                            指定等级:
+                                          </span>
+                                        </div>
+                                        <select
+                                          value={activeGroupObj.remainderSpecificLevel || "A"}
+                                          onChange={(e) => {
+                                            const updated = currentCustomGroups.map((g, idx) =>
+                                              idx === safeActiveGroupIndex ? { ...g, remainderSpecificLevel: e.target.value } : g
+                                            );
+                                            setNodeCustomGroups({
+                                              ...nodeCustomGroups,
+                                              [activeNode.id]: updated
+                                            });
+                                          }}
+                                          className="w-full max-w-[320px] h-[32px] px-[12px] border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6] bg-white"
+                                        >
+                                          {ALL_LEVELS.slice(0, 5).map((l) => (
+                                            <option key={l} value={l}>
+                                              {l}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+
+                                {/* DistributionTable */}
+                                <div className="mt-4 p-4 rounded-[8px] bg-white border border-[#E5E7EB]">
+                                  <DistributionTable
+                                    mode="edit"
+                                    ruleName=""
+                                    levelRule={levelRuleType}
+                                    showExpectedNumber={true}
+                                    totalParticipants={activeGroupObj.users?.length || 0}
+                                    hideRankRules={true}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()
+                      ) : showGroupSplit ? (
                         <div className="flex border border-[#E5E7EB] rounded-[8px] overflow-hidden bg-white mt-2 shadow-sm">
                           <div className="w-[200px] border-r border-[#E5E7EB] flex flex-col bg-[#F9FAFB] shrink-0">
                             <div className="p-3 text-[14px] font-medium border-b border-[#E5E7EB] text-[#4B5563]">
@@ -3984,6 +4422,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                       ? 4
                                       : 3
                                 }
+                                hideRankRules={true}
                               />
                             </div>
                           </div>
@@ -4083,6 +4522,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                               levelRule={levelRuleType}
                               showExpectedNumber={true}
                               totalParticipants={17}
+                              hideRankRules={true}
                             />
                           </div>
                         </div>
@@ -4121,6 +4561,91 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
             setShowCustomGroupModal(false);
           }}
         />
+      )}
+      {openSelectUsersModalIndex !== null && (() => {
+        const currentCustomGroups = getCustomGroupsForNode();
+        const activeGroupObj = currentCustomGroups[openSelectUsersModalIndex];
+        if (!activeGroupObj) return null;
+        
+        const selectedUsers = activeGroupObj.users || [];
+        
+        return (
+          <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4">
+            <div className="bg-white rounded-[8px] w-[500px] shadow-2xl flex flex-col p-6 max-h-[85vh] animate-scale-in">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#E5E7EB]">
+                <h3 className="text-[16px] font-semibold text-[#1F2937]">选择组内成员 — {activeGroupObj.name}</h3>
+                <button
+                  onClick={() => setOpenSelectUsersModalIndex(null)}
+                  className="text-neutral-400 hover:text-neutral-600 transition-colors cursor-pointer"
+                  type="button"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Members Selection List */}
+              <div className="flex-1 overflow-y-auto pr-1 my-3 flex flex-col gap-2 max-h-[350px]">
+                {ALL_MOCK_USERS.map((username) => {
+                  const isChecked = selectedUsers.includes(username);
+                  return (
+                    <label
+                      key={username}
+                      className="flex items-center gap-3 p-2.5 rounded-[4px] hover:bg-[#F9FAFB] cursor-pointer transition-colors border border-transparent hover:border-[#E5E7EB]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {
+                          let nextUsers;
+                          if (isChecked) {
+                            nextUsers = selectedUsers.filter((u) => u !== username);
+                          } else {
+                            nextUsers = [...selectedUsers, username];
+                          }
+                          const updated = currentCustomGroups.map((g, idx) =>
+                            idx === openSelectUsersModalIndex ? { ...g, users: nextUsers } : g
+                          );
+                          setNodeCustomGroups({
+                            ...nodeCustomGroups,
+                            [activeNode.id]: updated
+                          });
+                        }}
+                        className="w-4 h-4 text-[#15B8A6] border-neutral-200 rounded focus:ring-[#15B8A6] cursor-pointer accent-[#15B8A6]"
+                      />
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-[#E8F8F6] text-[#15B8A6] flex items-center justify-center text-[11px] font-bold">
+                          {username.charAt(0)}
+                        </div>
+                        <span className="text-[14px] text-neutral-800 font-medium">{username}</span>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between pt-4 mt-2 border-t border-[#E5E7EB]">
+                <div className="text-[13px] text-neutral-500">
+                  已选择：<span className="font-bold text-[#15B8A6]">{selectedUsers.length}</span> / {ALL_MOCK_USERS.length}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOpenSelectUsersModalIndex(null)}
+                  className="px-4 h-[32px] bg-[#15B8A6] text-white text-[13px] font-medium rounded-[4px] hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
+                >
+                  确定
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+      {localToast && (
+        <div className="fixed bottom-6 right-6 z-[999] bg-[#111827] text-white px-4 py-3 rounded-[8px] shadow-2xl flex items-center gap-2.5 animate-bounce-in font-sans text-[13px] border border-neutral-700/50">
+          <span className="w-2 h-2 rounded-full bg-[#15B8A6] animate-pulse"></span>
+          <span>{localToast}</span>
+        </div>
       )}
       {editingGroupRatios && (
         <div className="fixed inset-0 bg-black/50 z-[120] flex items-center justify-center">
@@ -4205,24 +4730,27 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                   <tbody>
                     {editingGroupRatios.ratios.map((ratio, index) => {
                       const isLast = index === editingGroupRatios.ratios.length - 1;
-                      const pct = Math.max(0, (isLast ? 100 : ratio.max) - ratio.min);
+                      const currentMin = index > 0 ? (editingGroupRatios.ratios[index - 1].max || 0) : ratio.min;
+                      const currentMax = isLast ? 100 : ratio.max;
+                      const pct = Math.max(0, currentMax - currentMin);
                       const groupObj = getActiveGroups().find(g => g.name === editingGroupRatios.groupName);
                       const gSize = groupObj ? groupObj.size : 20;
                       const expectedCount = Math.round((pct * gSize) / 100);
 
                       return (
                         <tr key={index} className="border-b border-neutral-200 last:border-b-0 text-[13px] text-[#1F2937]">
-                          <td className="py-2.5 px-4 border-r border-neutral-200 bg-white font-medium">
+                          <td className="py-2.5 px-4 border-r border-[#E5E7EB] bg-white font-medium">
                             {ratio.name}
                           </td>
-                          <td className="py-2 px-4 border-r border-neutral-200 bg-white">
+                          <td className="py-2 px-4 border-r border-[#E5E7EB] bg-white">
                             <div className="flex items-center justify-center gap-1.5">
                               <div className="relative w-[110px]">
                                 <input
                                   type="number"
                                   min="0"
                                   max="100"
-                                  value={ratio.min}
+                                  value={currentMin}
+                                  disabled={index > 0}
                                   onChange={(e) => {
                                     const val = Math.min(100, Math.max(0, Number(e.target.value)));
                                     const updated = editingGroupRatios.ratios.map((r, i) =>
@@ -4231,23 +4759,28 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                     setEditingGroupRatios({ ...editingGroupRatios, ratios: updated });
                                   }}
                                   placeholder="请输入比例"
-                                  className="w-full h-[32px] pl-2 pr-[16px] border border-neutral-200 rounded-[4px] text-center text-[13px] focus:outline-none focus:border-[#15B8A6]"
+                                  className={`w-full h-[32px] pl-2 pr-[16px] border border-neutral-200 rounded-[4px] text-center text-[13px] focus:outline-none focus:border-[#15B8A6] ${index > 0 ? "bg-neutral-50 text-neutral-400 cursor-not-allowed" : ""}`}
                                 />
                                 <span className="absolute right-1.5 top-1.5 text-[11px] text-[#9CA3AF] pointer-events-none">%</span>
                               </div>
-                              <span className="text-neutral-400 font-sans">~</span>
+                              <span className="text-[#9CA3AF] font-sans">~</span>
                               <div className="relative w-[110px]">
                                 <input
                                   type="number"
                                   min="0"
                                   max="100"
-                                  value={isLast ? 100 : ratio.max}
+                                  value={currentMax}
                                   disabled={isLast}
                                   onChange={(e) => {
                                     const val = Math.min(100, Math.max(0, Number(e.target.value)));
-                                    const updated = editingGroupRatios.ratios.map((r, i) =>
+                                    let updated = editingGroupRatios.ratios.map((r, i) =>
                                       i === index ? { ...r, max: val } : r
                                     );
+                                    if (index + 1 < updated.length) {
+                                      updated = updated.map((r, i) =>
+                                        i === index + 1 ? { ...r, min: val } : r
+                                      );
+                                    }
                                     setEditingGroupRatios({ ...editingGroupRatios, ratios: updated });
                                   }}
                                   placeholder="请输入比例"
@@ -4424,42 +4957,49 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                   <tbody>
                     {tempRankRatios.map((ratio, index) => {
                       const isLast = index === tempRankRatios.length - 1;
-                      const pct = Math.max(0, (isLast ? 100 : ratio.max) - ratio.min);
+                      const currentMin = index > 0 ? (tempRankRatios[index - 1].max || 0) : ratio.min;
+                      const currentMax = isLast ? 100 : ratio.max;
+                      const pct = Math.max(0, currentMax - currentMin);
                       const expectedCount = Math.round((pct * 100) / 100);
 
                       return (
                         <tr key={index} className="border-b border-neutral-200 last:border-b-0 text-[13px] text-[#1F2937]">
-                          <td className="py-2.5 px-4 border-r border-neutral-200 bg-white font-medium">
+                          <td className="py-2.5 px-4 border-r border-[#E5E7EB] bg-white font-medium">
                             {ratio.name}
                           </td>
-                          <td className="py-2 px-4 border-r border-neutral-200 bg-white">
+                          <td className="py-2 px-4 border-r border-[#E5E7EB] bg-white">
                             <div className="flex items-center justify-center gap-1.5">
                               <div className="relative w-[110px]">
                                 <input
                                   type="number"
                                   min="0"
                                   max="100"
-                                  value={ratio.min}
+                                  value={currentMin}
+                                  disabled={index > 0}
                                   onChange={(e) => {
                                     const val = Math.min(100, Math.max(0, Number(e.target.value)));
                                     setTempRankRatios(tempRankRatios.map((r, i) => i === index ? { ...r, min: val } : r));
                                   }}
                                   placeholder="请输入比例"
-                                  className="w-full h-[32px] pl-2 pr-[16px] border border-neutral-200 rounded-[4px] text-center text-[13px] focus:outline-none focus:border-[#15B8A6]"
+                                  className={`w-full h-[32px] pl-2 pr-[16px] border border-neutral-200 rounded-[4px] text-center text-[13px] focus:outline-none focus:border-[#15B8A6] ${index > 0 ? "bg-neutral-50 text-neutral-400 cursor-not-allowed" : ""}`}
                                 />
                                 <span className="absolute right-1.5 top-1.5 text-[11px] text-[#9CA3AF] pointer-events-none">%</span>
                               </div>
-                              <span className="text-neutral-400 font-sans">~</span>
+                              <span className="text-[#9CA3AF] font-sans">~</span>
                               <div className="relative w-[110px]">
                                 <input
                                   type="number"
                                   min="0"
                                   max="100"
-                                  value={isLast ? 100 : ratio.max}
+                                  value={currentMax}
                                   disabled={isLast}
                                   onChange={(e) => {
                                     const val = Math.min(100, Math.max(0, Number(e.target.value)));
-                                    setTempRankRatios(tempRankRatios.map((r, i) => i === index ? { ...r, max: val } : r));
+                                    let updated = tempRankRatios.map((r, i) => i === index ? { ...r, max: val } : r);
+                                    if (index + 1 < updated.length) {
+                                      updated = updated.map((r, i) => i === index + 1 ? { ...r, min: val } : r);
+                                    }
+                                    setTempRankRatios(updated);
                                   }}
                                   placeholder="请输入比例"
                                   className={`w-full h-[32px] pl-2 pr-[16px] border border-neutral-200 rounded-[4px] text-center text-[13px] focus:outline-none focus:border-[#15B8A6] ${isLast ? "bg-neutral-50 text-neutral-400 cursor-not-allowed" : ""}`}
@@ -5084,7 +5624,10 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                     </thead>
                                     <tbody>
                                       {inlineGroupRatios.map((ratio, rIdx) => {
-                                        const pct = Math.max(0, ratio.max - ratio.min);
+                                        const isLast = rIdx === inlineGroupRatios.length - 1;
+                                        const currentMin = rIdx > 0 ? (inlineGroupRatios[rIdx - 1].max || 0) : ratio.min;
+                                        const currentMax = isLast ? 100 : ratio.max;
+                                        const pct = Math.max(0, currentMax - currentMin);
                                         const expectedValue = Math.round((pct * g.size) / 100);
 
                                         return (
@@ -5099,7 +5642,8 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                                     type="number"
                                                     min="0"
                                                     max="100"
-                                                    value={ratio.min}
+                                                    value={currentMin}
+                                                    disabled={rIdx > 0}
                                                     onChange={(e) => {
                                                       const val = Math.min(100, Math.max(0, Number(e.target.value)));
                                                       const updated = inlineGroupRatios.map((r, i) =>
@@ -5107,7 +5651,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                                       );
                                                       setInlineGroupRatios(updated);
                                                     }}
-                                                    className="w-full h-[26px] pl-1.5 pr-4 border border-neutral-200 rounded-[4px] text-[11px] focus:outline-none focus:border-[#15B8A6]"
+                                                    className={`w-full h-[26px] pl-1.5 pr-4 border border-neutral-200 rounded-[4px] text-[11px] focus:outline-none focus:border-[#15B8A6] ${rIdx > 0 ? "bg-neutral-50 text-neutral-400 cursor-not-allowed" : ""}`}
                                                   />
                                                   <span className="absolute right-1 text-[9px] text-[#9CA3AF] top-[5px]">%</span>
                                                 </div>
@@ -5117,15 +5661,21 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                                     type="number"
                                                     min="0"
                                                     max="100"
-                                                    value={ratio.max}
+                                                    value={currentMax}
+                                                    disabled={isLast}
                                                     onChange={(e) => {
                                                       const val = Math.min(100, Math.max(0, Number(e.target.value)));
-                                                      const updated = inlineGroupRatios.map((r, i) =>
+                                                      let updated = inlineGroupRatios.map((r, i) =>
                                                         i === rIdx ? { ...r, max: val } : r
                                                       );
+                                                      if (rIdx + 1 < updated.length) {
+                                                        updated = updated.map((r, i) =>
+                                                          i === rIdx + 1 ? { ...r, min: val } : r
+                                                        );
+                                                      }
                                                       setInlineGroupRatios(updated);
                                                     }}
-                                                    className="w-full h-[26px] pl-1.5 pr-4 border border-neutral-200 rounded-[4px] text-[11px] focus:outline-none focus:border-[#15B8A6]"
+                                                    className={`w-full h-[26px] pl-1.5 pr-4 border border-neutral-200 rounded-[4px] text-[11px] focus:outline-none focus:border-[#15B8A6] ${isLast ? "bg-neutral-50 text-neutral-400 cursor-not-allowed" : ""}`}
                                                   />
                                                   <span className="absolute right-1 text-[9px] text-[#9CA3AF] top-[5px]">%</span>
                                                 </div>
@@ -5821,6 +6371,7 @@ function AssessmentResultSetting({
                     levelRule={levelRuleType}
                     showExpectedNumber={true}
                     totalParticipants={17}
+                    hideRankRules={true}
                   />
                 </div>
               ) : (
@@ -5937,6 +6488,7 @@ function AssessmentResultSetting({
                               ? 4
                               : 3
                         }
+                        hideRankRules={true}
                       />
                     </div>
                   </div>
@@ -7349,6 +7901,7 @@ function DistributionTable({
   showExpectedNumber = false,
   totalParticipants = 17,
   hideScoreRules = false,
+  hideRankRules = false,
 }: {
   mode?: "create" | "edit" | "view";
   controlRule?: string;
@@ -7357,6 +7910,7 @@ function DistributionTable({
   showExpectedNumber?: boolean;
   totalParticipants?: number;
   hideScoreRules?: boolean;
+  hideRankRules?: boolean;
 }) {
   const isView = mode === "view";
   const isRatio = controlRule === "ratio";
@@ -7598,7 +8152,7 @@ function DistributionTable({
 
   return (
     <div className="flex flex-col gap-2">
-      {isRank && (
+      {isRank && !hideRankRules && (
         <div className="flex items-center gap-6 mb-2 bg-[#F9FAFB] p-3 rounded-[4px] border border-[#E5E7EB]">
           <div className="flex items-center gap-2">
             <span className="text-[13px] text-[#4B5563]">同分超人数规则:</span>
