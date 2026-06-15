@@ -244,7 +244,6 @@ export default function App() {
       updater: "张三",
       updateTime: "2024-03-15 10:00:00",
       status: "enabled",
-      isReferenced: true,
     },
     {
       id: 2,
@@ -255,7 +254,6 @@ export default function App() {
       updater: "李四",
       updateTime: "2024-03-14 15:30:00",
       status: "enabled",
-      isReferenced: true,
     },
     {
       id: 3,
@@ -266,7 +264,6 @@ export default function App() {
       updater: "王五",
       updateTime: "2024-03-10 09:15:00",
       status: "enabled",
-      isReferenced: false,
     },
   ]);
 
@@ -312,7 +309,6 @@ export default function App() {
         updater: "当前用户",
         updateTime: new Date().toLocaleString(),
         status: "enabled",
-        isReferenced: false,
       };
       setRulesList([newRule, ...rulesList]);
       setChangeLogs([
@@ -379,7 +375,6 @@ export default function App() {
       updater: "当前用户",
       updateTime: new Date().toLocaleString(),
       status: "enabled",
-      isReferenced: false,
     };
     setRulesList([newRule, ...rulesList]);
     setChangeLogs([
@@ -2334,8 +2329,6 @@ function ForcedDistributionRuleList({
     name: string;
   } | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<number[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   const [columns, setColumns] = useState([
     { key: "name", label: "规则名称", visible: true },
@@ -2363,18 +2356,11 @@ function ForcedDistributionRuleList({
     }
   };
 
-  const filteredRules = rulesList.filter((item) => {
-    if (!searchQuery) return true;
-    const matchName = item.name?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchDesc = item.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchName || matchDesc;
-  });
-
   const toggleAllRows = () => {
-    if (selectedRowIds.length === filteredRules.length && filteredRules.length > 0) {
+    if (selectedRowIds.length === rulesList.length && rulesList.length > 0) {
       setSelectedRowIds([]);
     } else {
-      setSelectedRowIds(filteredRules.map((r) => r.id));
+      setSelectedRowIds(rulesList.map((r) => r.id));
     }
   };
 
@@ -2395,9 +2381,9 @@ function ForcedDistributionRuleList({
 
       {/* 白色内容卡片 */}
       <div className="bg-[#FFFFFF] rounded-[8px] p-[16px] shadow-[1px_1px_4px_4px_rgba(83,84,85,0.02)] flex-1 flex flex-col">
-        {/* 头部标题与右上角配置区 (严格照图优化) */}
-        <div className="flex items-center justify-between pb-[14px] mb-[16px] border-b border-[#E5E7EB]">
-          <div className="flex items-center gap-[12px]">
+        {/* 头部操作区 */}
+        <div className="flex items-center justify-between mb-[16px]">
+          <div className="flex items-center gap-4">
             <button
               onClick={onBack}
               className="flex items-center text-[#15B8A6] hover:opacity-80 text-[14px] font-medium"
@@ -2405,106 +2391,73 @@ function ForcedDistributionRuleList({
               <ChevronRight size={16} className="rotate-180 mr-1" />
               返回
             </button>
-            <h1 className="text-[16px] font-semibold text-[#1F2937] border-l border-[#E5E7EB] pl-3">
+            <h1 className="text-[16px] font-medium text-[#1F2937] border-l border-[#E5E7EB] pl-4">
               强制分布规则
             </h1>
           </div>
-
-          <div className="flex items-center gap-5">
-            <button
-              onClick={() => setShowChangeLogModal(true)}
-              className="flex items-center gap-1.5 text-[13px] text-[#4B5563] hover:text-[#15B8A6] transition-colors cursor-pointer"
-            >
-              <History size={15} />
-              <span>变更记录</span>
-            </button>
-            
-            <div className="relative">
-              <button
-                onClick={() => setShowColumnSettings(!showColumnSettings)}
-                className="flex items-center gap-1.5 text-[13px] text-[#4B5563] hover:text-[#15B8A6] transition-colors cursor-pointer"
-              >
-                <Settings size={15} />
-                <span>设置</span>
-              </button>
-
-              {showColumnSettings && (
-                <div className="absolute right-0 top-[28px] w-[180px] bg-white border border-[#E5E7EB] rounded-[4px] shadow-lg z-20 p-2 animate-scale-in">
-                  <div className="text-[11px] font-bold text-[#9CA3AF] mb-1.5 px-2 tracking-wide uppercase">
-                    显示/隐藏列
-                  </div>
-                  {columns.map((col) => (
-                    <label
-                      key={col.key}
-                      className="flex items-center gap-2.5 px-2 py-1.5 hover:bg-[#F9FAFB] cursor-pointer rounded text-[13px] text-neutral-700 transition-colors"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={col.visible}
-                        onChange={() => toggleColumn(col.key)}
-                        className="w-4 h-4 text-[#15B8A6] border-neutral-200 rounded focus:ring-[#15B8A6] accent-[#15B8A6] cursor-pointer"
-                      />
-                      <span>{col.label}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* 核心操作工具栏区 (对称美观风格优化) */}
-        <div className="flex items-center justify-between mb-[16px] bg-[#F9FAFB] p-3 rounded-[6px] border border-neutral-200/60">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onCreate}
-              className="px-[16px] h-[32px] bg-[#15B8A6] text-white rounded-[4px] text-[13px] font-medium hover:opacity-90 transition-opacity flex items-center gap-1.5 cursor-pointer shadow-sm"
-            >
-              <Plus size={14} className="stroke-[2.5px]" />
-              <span>新建规则</span>
-            </button>
-
+          <div className="flex items-center gap-3 relative">
             <button
               onClick={() => {
                 if (selectedRowIds.length > 0) {
                   setShowShareModal(true);
                 }
               }}
-              className={`px-[16px] h-[32px] border rounded-[4px] text-[13px] font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-[16px] h-[32px] border rounded-[4px] text-[14px] transition-colors flex items-center gap-1 ${
                 selectedRowIds.length > 0
-                  ? "border-[#15B8A6]/30 bg-[#E8F8F6] text-[#15B8A6] hover:opacity-95 shadow-sm"
-                  : "border-neutral-200 bg-white text-neutral-400 cursor-not-allowed hover:bg-neutral-50"
+                  ? "border-[#E5E7EB] bg-white text-[#1F2937] hover:bg-[#F9FAFB]"
+                  : "border-[#E5E7EB] bg-[#F9FAFB] text-[#9CA3AF] cursor-not-allowed"
               }`}
               disabled={selectedRowIds.length === 0}
             >
-              <span>分享权限</span>
+              分享权限
             </button>
-          </div>
+            <button
+              onClick={() => setShowColumnSettings(!showColumnSettings)}
+              className="w-[32px] h-[32px] flex items-center justify-center border border-[#E5E7EB] rounded-[4px] text-[#4B5563] hover:bg-[#F9FAFB] transition-colors"
+            >
+              <Settings size={16} />
+            </button>
 
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="搜索规则名称..."
-                className="w-[220px] h-[32px] pl-[12px] pr-[32px] border border-neutral-200 rounded-[4px] text-[13px] bg-white text-[#1F2937] placeholder-neutral-400 focus:outline-[#15B8A6] focus:border-[#15B8A6] focus:ring-1 focus:ring-[#15B8A6]/20 transition-all font-sans"
-              />
-              <Search size={14} className="absolute right-[10px] top-[9px] text-neutral-400 pointer-events-none" />
-            </div>
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="text-[13px] text-neutral-500 hover:text-[#15B8A6] transition-colors font-medium cursor-pointer"
-              >
-                重置
-              </button>
+            {showColumnSettings && (
+              <div className="absolute top-[40px] right-[100px] w-[200px] bg-white border border-[#E5E7EB] rounded-[4px] shadow-lg z-10 p-2">
+                <div className="text-[12px] font-medium text-[#6B7280] mb-2 px-2">
+                  列设置
+                </div>
+                {columns.map((col) => (
+                  <label
+                    key={col.key}
+                    className="flex items-center gap-2 px-2 py-1.5 hover:bg-[#F9FAFB] cursor-pointer rounded"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={col.visible}
+                      onChange={() => toggleColumn(col.key)}
+                      className="w-4 h-4 text-[#15B8A6] border-[#E5E7EB] rounded focus:ring-[#15B8A6]"
+                    />
+                    <span className="text-[13px] text-[#4B5563]">
+                      {col.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
             )}
+
+            <button
+              onClick={() => setShowChangeLogModal(true)}
+              className="px-[16px] h-[32px] border border-[#E5E7EB] bg-[#FFFFFF] text-[#4B5563] hover:bg-[#F9FAFB] rounded-[4px] text-[14px] transition-colors flex items-center gap-1"
+            >
+              <History size={16} /> 变更记录
+            </button>
+            <button
+              onClick={onCreate}
+              className="px-[16px] h-[32px] bg-[#15B8A6] text-white rounded-[4px] text-[14px] hover:bg-[#15B8A6]/90 transition-colors flex items-center gap-1"
+            >
+              <Plus size={16} /> 新建规则
+            </button>
           </div>
         </div>
 
-        {/* 续：列表表格展示区 */}
+        {/* 列表区 */}
         <div className="border border-[#E5E7EB] rounded-[4px] overflow-hidden flex-1 flex flex-col">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -2512,10 +2465,10 @@ function ForcedDistributionRuleList({
                 <th className="py-[12px] px-[16px] w-[50px] text-center">
                   <input
                     type="checkbox"
-                    className="w-4 h-4 text-[#15B8A6] border-neutral-200 rounded focus:ring-[#15B8A6] accent-[#15B8A6] cursor-pointer"
+                    className="w-4 h-4 text-[#15B8A6] border-[#E5E7EB] rounded focus:ring-[#15B8A6]"
                     checked={
-                      selectedRowIds.length === filteredRules.length &&
-                      filteredRules.length > 0
+                      selectedRowIds.length === rulesList.length &&
+                      rulesList.length > 0
                     }
                     onChange={toggleAllRows}
                   />
@@ -2525,7 +2478,7 @@ function ForcedDistributionRuleList({
                     col.visible && (
                       <th
                         key={col.key}
-                        className={`py-[12px] px-[16px] text-[13px] font-medium text-[#4B5563] ${col.key === "actions" ? "w-[200px]" : ""}`}
+                        className={`py-[12px] px-[16px] text-[13px] font-medium text-[#4B5563] ${col.key === "actions" ? "w-[180px]" : ""}`}
                       >
                         {col.label}
                       </th>
@@ -2534,170 +2487,109 @@ function ForcedDistributionRuleList({
               </tr>
             </thead>
             <tbody>
-              {filteredRules.map((item) => {
-                const isSelected = selectedRowIds.includes(item.id);
-                return (
-                  <tr
-                    key={item.id}
-                    className={`border-b border-[#E5E7EB] transition-colors ${
-                      isSelected ? "bg-[#15B8A6]/5 hover:bg-[#15B8A6]/10" : "hover:bg-[#F9FAFB]/50"
-                    }`}
-                  >
-                    <td className="py-[12px] px-[16px] w-[50px] text-center">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 text-[#15B8A6] border-neutral-200 rounded focus:ring-[#15B8A6] accent-[#15B8A6] cursor-pointer"
-                        checked={isSelected}
-                        onChange={() => toggleRowSelection(item.id)}
-                      />
+              {rulesList.map((item) => (
+                <tr
+                  key={item.id}
+                  className="border-b border-[#E5E7EB] hover:bg-[#F9FAFB]/50 transition-colors"
+                >
+                  <td className="py-[12px] px-[16px] w-[50px] text-center">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 text-[#15B8A6] border-[#E5E7EB] rounded focus:ring-[#15B8A6]"
+                      checked={selectedRowIds.includes(item.id)}
+                      onChange={() => toggleRowSelection(item.id)}
+                    />
+                  </td>
+                  {columns.find((c) => c.key === "name")?.visible && (
+                    <td className="py-[12px] px-[16px] text-[13px] text-[#1F2937]">
+                      {item.name}
                     </td>
-                    {columns.find((c) => c.key === "name")?.visible && (
-                      <td className="py-[12px] px-[16px] text-[13px] text-[#1F2937] font-medium">
-                        {item.name}
-                      </td>
-                    )}
-                    {columns.find((c) => c.key === "description")?.visible && (
-                      <td
-                        className="py-[12px] px-[16px] text-[13px] text-[#4B5563] max-w-[200px] truncate"
-                        title={item.description}
+                  )}
+                  {columns.find((c) => c.key === "description")?.visible && (
+                    <td
+                      className="py-[12px] px-[16px] text-[13px] text-[#4B5563] max-w-[200px] truncate"
+                      title={item.description}
+                    >
+                      {item.description || "-"}
+                    </td>
+                  )}
+                  {columns.find((c) => c.key === "levelRule")?.visible && (
+                    <td className="py-[12px] px-[16px] text-[13px] text-[#4B5563]">
+                      {item.levelRule}
+                    </td>
+                  )}
+                  {columns.find((c) => c.key === "status")?.visible && (
+                    <td className="py-[12px] px-[16px] text-[13px]">
+                      <button
+                        onClick={() => onToggleStatus(item.id)}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#15B8A6] focus:ring-offset-2 ${item.status === "enabled" ? "bg-[#15B8A6]" : "bg-gray-200"}`}
+                        role="switch"
+                        aria-checked={item.status === "enabled"}
                       >
-                        {item.description || "-"}
-                      </td>
-                    )}
-                    {columns.find((c) => c.key === "levelRule")?.visible && (
-                      <td className="py-[12px] px-[16px] text-[13px] text-[#4B5563]">
-                        {item.levelRule}
-                      </td>
-                    )}
-                    {columns.find((c) => c.key === "status")?.visible && (
-                      <td className="py-[12px] px-[16px] text-[13px]">
-                        <button
-                          onClick={() => onToggleStatus(item.id)}
-                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#15B8A6] focus:ring-offset-2 ${item.status === "enabled" ? "bg-[#15B8A6]" : "bg-gray-200"}`}
-                          role="switch"
-                          aria-checked={item.status === "enabled"}
-                        >
-                          <span
-                            aria-hidden="true"
-                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${item.status === "enabled" ? "translate-x-2" : "-translate-x-2"}`}
-                          />
-                        </button>
-                      </td>
-                    )}
-                    {columns.find((c) => c.key === "updater")?.visible && (
-                      <td className="py-[12px] px-[16px] text-[13px] text-[#4B5563]">
-                        {item.updater || "-"}
-                      </td>
-                    )}
-                    {columns.find((c) => c.key === "updateTime")?.visible && (
-                      <td className="py-[12px] px-[16px] text-[13px] text-[#4B5563]">
-                        {item.updateTime}
-                      </td>
-                    )}
-                    {columns.find((c) => c.key === "actions")?.visible && (
-                      <td className="py-[12px] px-[16px] text-[13px]">
-                        <button
-                          onClick={() => onEdit(item)}
-                          className="text-[#15B8A6] hover:opacity-80 mr-[12px] font-medium"
-                        >
-                          编辑
-                        </button>
-                        <button
-                          onClick={() =>
-                            setCopyModalData({ id: item.id, name: item.name })
-                          }
-                          className="text-[#15B8A6] hover:opacity-80 mr-[12px] font-medium"
-                        >
-                          复制
-                        </button>
-                        {item.isReferenced ? (
-                          <button
-                            onClick={() => {
-                              setSelectedRuleName(item.name);
-                              setShowUsageModal(true);
-                            }}
-                            className="text-[#15B8A6] hover:opacity-80 mr-[12px] font-medium"
-                          >
-                            引用情况
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => setDeleteConfirmId(item.id)}
-                            className="text-[#FF4D4F] hover:opacity-80 font-medium cursor-pointer"
-                          >
-                            删除
-                          </button>
-                        )}
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-              {filteredRules.length === 0 && (
+                        <span
+                          aria-hidden="true"
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${item.status === "enabled" ? "translate-x-2" : "-translate-x-2"}`}
+                        />
+                      </button>
+                    </td>
+                  )}
+                  {columns.find((c) => c.key === "updater")?.visible && (
+                    <td className="py-[12px] px-[16px] text-[13px] text-[#4B5563]">
+                      {item.updater || "-"}
+                    </td>
+                  )}
+                  {columns.find((c) => c.key === "updateTime")?.visible && (
+                    <td className="py-[12px] px-[16px] text-[13px] text-[#4B5563]">
+                      {item.updateTime}
+                    </td>
+                  )}
+                  {columns.find((c) => c.key === "actions")?.visible && (
+                    <td className="py-[12px] px-[16px] text-[13px]">
+                      <button
+                        onClick={() => onEdit(item)}
+                        className="text-[#15B8A6] hover:opacity-80 mr-[12px]"
+                      >
+                        编辑
+                      </button>
+                      <button
+                        onClick={() =>
+                          setCopyModalData({ id: item.id, name: item.name })
+                        }
+                        className="text-[#15B8A6] hover:opacity-80 mr-[12px]"
+                      >
+                        复制
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedRuleName(item.name);
+                          setShowUsageModal(true);
+                        }}
+                        className="text-[#15B8A6] hover:opacity-80 mr-[12px]"
+                      >
+                        引用情况
+                      </button>
+                      <button
+                        onClick={() => onDelete && onDelete(item.id)}
+                        className="text-[#FF4D4F] hover:opacity-80"
+                      >
+                        删除
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+              {rulesList.length === 0 && (
                 <tr>
                   <td
                     colSpan={columns.filter((c) => c.visible).length}
-                    className="py-[48px] text-center text-[13px] text-[#9CA3AF]"
+                    className="py-[32px] text-center text-[13px] text-[#9CA3AF]"
                   >
-                    未找到相关的强制分布规则
+                    暂无数据
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
-        </div>
-
-        {/* 底部信息栏与分页组件 (与图片一致) */}
-        <div className="flex items-center justify-between mt-[16px] pt-[12px] border-t border-[#E5E7EB] font-sans">
-          <div className="flex items-center gap-3">
-            <span className="text-[13px] text-[#4B5563]">共 {filteredRules.length} 条</span>
-            {selectedRowIds.length > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[#E8F8F6] text-[#15B8A6] border border-[#15B8A6]/20 rounded-[4px] text-[12px] font-medium animate-fade-in select-none">
-                <span>已选 <strong className="font-bold">{selectedRowIds.length}</strong> 项</span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedRowIds([])}
-                  className="text-[#15B8A6] hover:text-[#119A8A] font-bold text-[14px] leading-3 cursor-pointer ml-0.5"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-2 text-[13px] text-[#4B5563]">
-            {/* 分页按钮 */}
-            <button className="w-[28px] h-[28px] flex items-center justify-center border border-[#E5E7EB] rounded-[4px] bg-white hover:bg-[#F9FAFB] transition-colors disabled:opacity-50 cursor-pointer" disabled>
-              &lt;
-            </button>
-            <button className="w-[28px] h-[28px] flex items-center justify-center border border-[#15B8A6] bg-white text-[#15B8A6] font-medium rounded-[4px] cursor-pointer">
-              1
-            </button>
-            <button className="w-[28px] h-[28px] flex items-center justify-center border border-[#E5E7EB] bg-white hover:bg-[#F9FAFB] rounded-[4px] transition-colors cursor-pointer">
-              2
-            </button>
-            <button className="w-[28px] h-[28px] flex items-center justify-center border border-[#E5E7EB] bg-white hover:bg-[#F9FAFB] rounded-[4px] transition-colors cursor-pointer">
-              3
-            </button>
-            <span className="px-1 text-gray-400">...</span>
-            <button className="w-[28px] h-[28px] flex items-center justify-center border border-[#E5E7EB] bg-white hover:bg-[#F9FAFB] rounded-[4px] transition-colors cursor-pointer">
-              10
-            </button>
-            <button className="w-[28px] h-[28px] flex items-center justify-center border border-[#E5E7EB] bg-white hover:bg-[#F9FAFB] rounded-[4px] transition-colors cursor-pointer">
-              &gt;
-            </button>
-            
-            <div className="flex items-center gap-1.5 ml-2 border border-[#E5E7EB] rounded-[4px] bg-white h-[28px] px-2 text-[12px] cursor-pointer hover:bg-[#F9FAFB]">
-              <span>10 条/页</span>
-              <ChevronDown size={12} className="text-gray-400" />
-            </div>
-
-            <div className="flex items-center gap-1 ml-2 text-neutral-500">
-              <span>跳转</span>
-              <input type="text" defaultValue="1" className="w-[32px] h-[28px] border border-[#E5E7EB] rounded-[4px] text-center text-[12px] focus:outline-none focus:border-[#15B8A6]" />
-              <span>页</span>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -2735,40 +2627,6 @@ function ForcedDistributionRuleList({
             }
           }}
         />
-      )}
-
-      {deleteConfirmId !== null && (
-        <div className="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[8px] w-[360px] shadow-[1px_1px_4px_4px_rgba(83,84,85,0.02)] flex flex-col p-[20px] animate-scale-in">
-            <h3 className="text-[15px] font-bold text-[#1F2937] mb-3">
-              提示
-            </h3>
-            <p className="text-[14px] text-[#4B5563] mb-6 font-medium">
-              确认删除规则吗？
-            </p>
-            <div className="flex items-center justify-end gap-3 font-sans">
-              <button
-                type="button"
-                onClick={() => setDeleteConfirmId(null)}
-                className="px-[16px] h-[32px] bg-white border border-[#E1E2E4] rounded-[4px] text-[13px] text-[#4B5563] hover:bg-[#F9FAFB] cursor-pointer"
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (onDelete && deleteConfirmId !== null) {
-                    onDelete(deleteConfirmId);
-                  }
-                  setDeleteConfirmId(null);
-                }}
-                className="px-[16px] h-[32px] bg-[#15B8A6] rounded-[4px] text-[13px] text-white hover:opacity-90 font-medium cursor-pointer"
-              >
-                确认
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </>
   );
@@ -3298,6 +3156,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
   const [sameScoreRule, setSameScoreRule] = useState("allow_exceed"); // allow_exceed | push_to_next
   const [remainderRule, setRemainderRule] = useState("next"); // next | specific
   const [remainderSpecificLevel, setRemainderSpecificLevel] = useState("A");
+  const [simEnableCount, setSimEnableCount] = useState(10);
 
   const [groupRatiosOverride, setGroupRatiosOverride] = useState<Record<string, { name: string; min: number; max: number }[]>>({});
   const [editingGroupRatios, setEditingGroupRatios] = useState<{ groupName: string; ratios: { name: string; min: number; max: number }[] } | null>(null);
@@ -4204,7 +4063,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                       启用人数:
                                     </span>
                                   </div>
-                                  <div className="flex items-center gap-2 max-w-[320px]">
+                                  <div className="flex items-center gap-2">
                                     <input
                                       type="number"
                                       min="0"
@@ -4220,14 +4079,14 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                           [activeNode.id]: updated
                                         });
                                       }}
-                                      className="w-[120px] h-[32px] px-3 border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6] bg-white text-[#1F2937]"
+                                      className="w-[120px] h-[32px] px-[12px] border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6]"
                                     />
                                     <div className="relative group flex items-center">
                                       <HelpCircle
                                         size={14}
                                         className="text-[#6B7280] cursor-pointer"
                                       />
-                                      <div className="absolute left-[100%] ml-2 top-1/2 -translate-y-1/2 hidden group-hover:block bg-[#1F2937] text-white text-[12px] px-2 py-1 rounded w-max z-[1000] shadow-lg leading-normal font-normal">
+                                      <div className="absolute left-[100%] ml-2 top-1/2 -translate-y-1/2 hidden group-hover:block bg-[#1F2937] text-white text-[12px] px-2 py-1 rounded w-max z-[1000] shadow-lg">
                                         当待审核人员≥启用人数时，该强制分布规则生效；否则不生效
                                         <div className="absolute left-[-4px] top-1/2 -translate-y-1/2 w-0 h-0 border-y-4 border-y-transparent border-r-4 border-r-[#1F2937]"></div>
                                       </div>
@@ -4328,8 +4187,8 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                     ruleName=""
                                     levelRule={levelRuleType}
                                     showExpectedNumber={true}
+                                    hideRankTieRules={levelRuleType === "rank"}
                                     totalParticipants={activeGroupObj.users?.length || 0}
-                                    hideRankRules={true}
                                   />
                                 </div>
                               </div>
@@ -4383,25 +4242,21 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                   启用人数 :
                                 </span>
                               </div>
-                              <div className="flex items-center gap-2 max-w-[320px]">
+                              <div className="flex items-center gap-2 pt-[8px]">
                                 <input
                                   type="number"
                                   min="0"
                                   step="1"
-                                  value={activeNode.enableCount !== undefined ? activeNode.enableCount : 10}
-                                  onChange={(e) =>
-                                    updateActiveNode({
-                                      enableCount: e.target.value ? parseInt(e.target.value) : 0,
-                                    })
-                                  }
-                                  className="w-[120px] h-[32px] px-3 border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6] bg-white text-[#1F2937]"
+                                  value={simEnableCount}
+                                  onChange={(e) => setSimEnableCount(e.target.value ? parseInt(e.target.value) : 0)}
+                                  className="w-[120px] h-[32px] px-[12px] border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6] bg-white text-[#1F2937]"
                                 />
                                 <div className="relative group flex items-center">
                                   <HelpCircle
                                     size={14}
                                     className="text-[#6B7280] cursor-pointer"
                                   />
-                                  <div className="absolute left-[100%] ml-2 top-1/2 -translate-y-1/2 hidden group-hover:block bg-[#1F2937] text-white text-[12px] px-2 py-1 rounded w-max z-[1000] shadow-lg leading-normal font-normal">
+                                  <div className="absolute left-[100%] ml-2 top-1/2 -translate-y-1/2 hidden group-hover:block bg-[#1F2937] text-white text-[12px] px-2 py-1 rounded w-max z-[1000] shadow-lg">
                                     当待审核人员≥启用人数时，该强制分布规则生效；否则不生效
                                     <div className="absolute left-[-4px] top-1/2 -translate-y-1/2 w-0 h-0 border-y-4 border-y-transparent border-r-4 border-r-[#1F2937]"></div>
                                   </div>
@@ -4488,6 +4343,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                 ruleName=""
                                 levelRule={levelRuleType}
                                 showExpectedNumber={true}
+                                hideRankTieRules={levelRuleType === "rank"}
                                 totalParticipants={
                                   activeGroupIndex === 0
                                     ? 10
@@ -4495,7 +4351,6 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                       ? 4
                                       : 3
                                 }
-                                hideRankRules={true}
                               />
                             </div>
                           </div>
@@ -4520,32 +4375,28 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                           </div>
 
                           {/* 启用人数 */}
-                          <div className="flex items-center">
+                          <div className="flex items-center mt-[12px]">
                             <div className="w-[155px] flex justify-end pr-[16px] shrink-0 pt-[8px]">
                               <span className="text-red-500 mr-1">*</span>
                               <span className="text-[14px] text-[#4B5563] whitespace-nowrap">
                                 启用人数 :
                               </span>
                             </div>
-                            <div className="flex items-center gap-2 w-[320px]">
+                            <div className="flex items-center gap-2 pt-[8px]">
                               <input
                                 type="number"
                                 min="0"
                                 step="1"
-                                value={activeNode.enableCount !== undefined ? activeNode.enableCount : 10}
-                                onChange={(e) =>
-                                  updateActiveNode({
-                                    enableCount: e.target.value ? parseInt(e.target.value) : 0,
-                                  })
-                                }
-                                className="w-[120px] h-[32px] px-3 border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6] bg-white text-[#1F2937]"
+                                value={simEnableCount}
+                                onChange={(e) => setSimEnableCount(e.target.value ? parseInt(e.target.value) : 0)}
+                                className="w-[120px] h-[32px] px-[12px] border border-[#E5E7EB] rounded-[4px] text-[14px] focus:outline-none focus:border-[#15B8A6] bg-white text-[#1F2937]"
                               />
                               <div className="relative group flex items-center">
                                 <HelpCircle
                                   size={14}
                                   className="text-[#6B7280] cursor-pointer"
                                 />
-                                <div className="absolute left-[100%] ml-2 top-1/2 -translate-y-1/2 hidden group-hover:block bg-[#1F2937] text-white text-[12px] px-2 py-1 rounded w-max z-[1000] shadow-lg leading-normal font-normal">
+                                <div className="absolute left-[100%] ml-2 top-1/2 -translate-y-1/2 hidden group-hover:block bg-[#1F2937] text-white text-[12px] px-2 py-1 rounded w-max z-[1000] shadow-lg">
                                   当待审核人员≥启用人数时，该强制分布规则生效；否则不生效
                                   <div className="absolute left-[-4px] top-1/2 -translate-y-1/2 w-0 h-0 border-y-4 border-y-transparent border-r-4 border-r-[#1F2937]"></div>
                                 </div>
@@ -4628,8 +4479,8 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                               ruleName=""
                               levelRule={levelRuleType}
                               showExpectedNumber={true}
+                              hideRankTieRules={levelRuleType === "rank"}
                               totalParticipants={17}
-                              hideRankRules={true}
                             />
                           </div>
                         </div>
@@ -6478,7 +6329,6 @@ function AssessmentResultSetting({
                     levelRule={levelRuleType}
                     showExpectedNumber={true}
                     totalParticipants={17}
-                    hideRankRules={true}
                   />
                 </div>
               ) : (
@@ -6595,7 +6445,6 @@ function AssessmentResultSetting({
                               ? 4
                               : 3
                         }
-                        hideRankRules={true}
                       />
                     </div>
                   </div>
@@ -8008,7 +7857,7 @@ function DistributionTable({
   showExpectedNumber = false,
   totalParticipants = 17,
   hideScoreRules = false,
-  hideRankRules = false,
+  hideRankTieRules = false,
 }: {
   mode?: "create" | "edit" | "view";
   controlRule?: string;
@@ -8017,7 +7866,7 @@ function DistributionTable({
   showExpectedNumber?: boolean;
   totalParticipants?: number;
   hideScoreRules?: boolean;
-  hideRankRules?: boolean;
+  hideRankTieRules?: boolean;
 }) {
   const isView = mode === "view";
   const isRatio = controlRule === "ratio";
@@ -8259,7 +8108,7 @@ function DistributionTable({
 
   return (
     <div className="flex flex-col gap-2">
-      {isRank && !hideRankRules && (
+      {isRank && !hideRankTieRules && (
         <div className="flex items-center gap-6 mb-2 bg-[#F9FAFB] p-3 rounded-[4px] border border-[#E5E7EB]">
           <div className="flex items-center gap-2">
             <span className="text-[13px] text-[#4B5563]">同分超人数规则:</span>
