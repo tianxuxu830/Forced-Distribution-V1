@@ -1698,7 +1698,7 @@ function LevelSettingEdit({
                     <td className="py-[16px] px-[16px]">
                       <div className="flex items-center gap-2">
                         <div
-                          className={`flex items-center gap-1 border border-[#E5E7EB] rounded-[4px] pr-[8px] focus-within:border-[#15B8A6] ${index !== 0 ? "bg-[#F9FAFB]" : "bg-white"}`}
+                          className={`flex items-center gap-1 border border-[#E5E7EB] rounded-[4px] pr-[8px] focus-within:border-[#15B8A6] bg-[#F9FAFB]`}
                         >
                           <input
                             type="number"
@@ -1706,7 +1706,7 @@ function LevelSettingEdit({
                             value={
                               index !== 0
                                 ? levels[index - 1].rankRatioMax
-                                : level.rankRatioMin
+                                : "0"
                             }
                             onChange={(e) =>
                               updateLevel(
@@ -1715,8 +1715,8 @@ function LevelSettingEdit({
                                 e.target.value,
                               )
                             }
-                            disabled={index !== 0}
-                            className={`w-[110px] h-[32px] px-[12px] text-[13px] focus:outline-none bg-transparent ${index !== 0 ? "text-[#9CA3AF] cursor-not-allowed" : "text-[#1F2937]"}`}
+                            disabled={true}
+                            className={`w-[110px] h-[32px] px-[12px] text-[13px] focus:outline-none bg-transparent text-[#9CA3AF] cursor-not-allowed`}
                           />
                           <span className="text-[#9CA3AF] text-[13px]">%</span>
                         </div>
@@ -3488,20 +3488,6 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      setTempRankRatios([...rankRatios]);
-                                      setTempSameScoreRule(sameScoreRule);
-                                      setTempRemainderRule(remainderRule);
-                                      setTempRemainderSpecificLevel(remainderSpecificLevel);
-                                      setIsBatchEditingRatios(true);
-                                    }}
-                                    className="text-[13.5px] text-[#15B8A6] hover:opacity-85 font-semibold cursor-pointer flex items-center gap-1 border border-[#15B8A6]/20 bg-teal-50/20 hover:bg-teal-50 px-2 py-1 rounded"
-                                  >
-                                    <SlidersHorizontal size={13} />
-                                    调整通用比例
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
                                       setDrawerViewMode("group");
                                       setShowBreakdownDrawer(true);
                                     }}
@@ -4688,7 +4674,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                   <tbody>
                     {editingGroupRatios.ratios.map((ratio, index) => {
                       const isLast = index === editingGroupRatios.ratios.length - 1;
-                      const currentMin = index > 0 ? (editingGroupRatios.ratios[index - 1].max || 0) : ratio.min;
+                      const currentMin = index === 0 ? 0 : (editingGroupRatios.ratios[index - 1].max || 0);
                       const currentMax = isLast ? 100 : ratio.max;
                       const pct = Math.max(0, currentMax - currentMin);
                       const groupObj = getActiveGroups().find(g => g.name === editingGroupRatios.groupName);
@@ -4708,7 +4694,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                   min="0"
                                   max="100"
                                   value={currentMin}
-                                  disabled={index > 0}
+                                  disabled
                                   onChange={(e) => {
                                     const val = Math.min(100, Math.max(0, Number(e.target.value)));
                                     const updated = editingGroupRatios.ratios.map((r, i) =>
@@ -4717,7 +4703,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                     setEditingGroupRatios({ ...editingGroupRatios, ratios: updated });
                                   }}
                                   placeholder="请输入比例"
-                                  className={`w-full h-[32px] pl-2 pr-[16px] border border-neutral-200 rounded-[4px] text-center text-[13px] focus:outline-none focus:border-[#15B8A6] ${index > 0 ? "bg-neutral-50 text-neutral-400 cursor-not-allowed" : ""}`}
+                                  className={`w-full h-[32px] pl-2 pr-[16px] border border-neutral-200 rounded-[4px] text-center text-[13px] focus:outline-none focus:border-[#15B8A6] bg-neutral-50 text-neutral-400 cursor-not-allowed`}
                                 />
                                 <span className="absolute right-1.5 top-1.5 text-[11px] text-[#9CA3AF] pointer-events-none">%</span>
                               </div>
@@ -4915,7 +4901,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                   <tbody>
                     {tempRankRatios.map((ratio, index) => {
                       const isLast = index === tempRankRatios.length - 1;
-                      const currentMin = index > 0 ? (tempRankRatios[index - 1].max || 0) : ratio.min;
+                      const currentMin = index === 0 ? 0 : (tempRankRatios[index - 1].max || 0);
                       const currentMax = isLast ? 100 : ratio.max;
                       const pct = Math.max(0, currentMax - currentMin);
                       const expectedCount = Math.round((pct * 100) / 100);
@@ -4933,13 +4919,13 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                   min="0"
                                   max="100"
                                   value={currentMin}
-                                  disabled={index > 0}
+                                  disabled
                                   onChange={(e) => {
                                     const val = Math.min(100, Math.max(0, Number(e.target.value)));
                                     setTempRankRatios(tempRankRatios.map((r, i) => i === index ? { ...r, min: val } : r));
                                   }}
                                   placeholder="请输入比例"
-                                  className={`w-full h-[32px] pl-2 pr-[16px] border border-neutral-200 rounded-[4px] text-center text-[13px] focus:outline-none focus:border-[#15B8A6] ${index > 0 ? "bg-neutral-50 text-neutral-400 cursor-not-allowed" : ""}`}
+                                  className={`w-full h-[32px] pl-2 pr-[16px] border border-neutral-200 rounded-[4px] text-center text-[13px] focus:outline-none focus:border-[#15B8A6] bg-neutral-50 text-neutral-400 cursor-not-allowed`}
                                 />
                                 <span className="absolute right-1.5 top-1.5 text-[11px] text-[#9CA3AF] pointer-events-none">%</span>
                               </div>
@@ -5166,91 +5152,90 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                               </tr>
                             </thead>
                             <tbody>
-                              {groups.map((g, idx) => {
-                                const ratiosForGroup = groupRatiosOverride[g.name] || rankRatios;
-                                const isOverridden = !!groupRatiosOverride[g.name];
-                                const isDifferent = isOverridden && (
-                                  groupRatiosOverride[g.name].length !== rankRatios.length ||
-                                  groupRatiosOverride[g.name].some((ratio, j) => {
-                                    const defaultRatio = rankRatios[j];
-                                    return !defaultRatio || ratio.min !== defaultRatio.min || ratio.max !== defaultRatio.max || ratio.name !== defaultRatio.name;
-                                  })
-                                );
+                                  {groups.map((g, idx) => {
+                                    const ratiosForGroup = groupRatiosOverride[g.name] || rankRatios;
+                                    const isOverridden = !!groupRatiosOverride[g.name];
+                                    const isDifferent = isOverridden && (
+                                      groupRatiosOverride[g.name].length !== rankRatios.length ||
+                                      groupRatiosOverride[g.name].some((ratio, j) => {
+                                        const defaultRatio = rankRatios[j];
+                                        return !defaultRatio || ratio.min !== defaultRatio.min || ratio.max !== defaultRatio.max || ratio.name !== defaultRatio.name;
+                                      })
+                                    );
 
-                                return (
-                                  <tr key={idx} className="border-b border-neutral-100 last:border-b-0 text-[#1F2937] hover:bg-neutral-50/50">
-                                    <td className="py-2.5 px-3 font-medium text-[#1F2937] sticky left-0 bg-white z-[2] shadow-[2px_0_5px_rgba(83,84,85,0.04)] border-r border-neutral-150">
-                                      <div className="flex items-center gap-1.5 truncate max-w-[215px]">
-                                        <span className="w-1 h-3 bg-[#15B8A6]/60 rounded-sm inline-block"></span>
-                                        <span className="truncate" title={g.name}>{g.name}</span>
-                                        {isDifferent && (
-                                          <span className="text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.2 rounded border border-amber-250 font-bold select-none shrink-0 scale-90">
-                                            专
-                                          </span>
-                                        )}
-                                      </div>
-                                    </td>
-                                    {rankRatios.map((ratio) => {
-                                      const matchRatio = ratiosForGroup.find(r => r.name === ratio.name) || ratio;
-                                      const pct = Math.max(0, matchRatio.max - matchRatio.min);
-                                      const expected = Math.round((pct * g.size) / 100);
-                                      return (
-                                        <td key={ratio.name} className="py-2.5 px-3 text-right font-semibold text-[#15B8A6]">
-                                          <span>{expected}人</span>
-                                          {isDifferent && (
-                                            <span className="block text-[9px] font-normal text-amber-500 scale-90 text-right pr-0.5">
-                                              ({pct}%)
-                                            </span>
-                                          )}
-                                        </td>
-                                      );
-                                    })}
-                                    <td className="py-2.5 px-3 text-center text-[#6B7280] font-medium border-l border-neutral-100">
-                                      {g.size}人
-                                    </td>
-                                    <td className="py-2.5 px-3">
-                                      <div className="flex flex-col gap-1 items-center justify-center">
-                                        <div className="flex items-center gap-1.5 justify-center">
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setEditingGroupRatios({ 
-                                                groupName: g.name, 
-                                                ratios: ratiosForGroup.map(r => ({ ...r })) 
-                                              });
-                                              setTempGroupSameScoreRule(groupSameScoreRule[g.name] || sameScoreRule);
-                                              setTempGroupRemainderRule(groupRemainderRule[g.name] || remainderRule);
-                                              setTempGroupRemainderSpecificLevel(groupRemainderSpecificLevel[g.name] || remainderSpecificLevel);
-                                            }}
-                                            className="text-[11px] text-[#15B8A6] hover:text-[#0f9688] font-semibold flex items-center gap-0.5 cursor-pointer bg-[#15B8A6]/5 hover:bg-[#15B8A6]/10 px-2 py-1 rounded transition-colors"
-                                          >
-                                            <SlidersHorizontal size={10} />
-                                            调整比例
-                                          </button>
-                                          {isDifferent && (
-                                            <button
-                                              type="button"
-                                              onClick={() => {
-                                                const updated = { ...groupRatiosOverride };
-                                                delete updated[g.name];
-                                                setGroupRatiosOverride(updated);
-                                              }}
-                                              className="text-[11px] text-[#EF4444] hover:text-[#dc2626] font-semibold flex items-center cursor-pointer bg-red-50 hover:bg-red-100/50 px-2 py-1 rounded transition-colors"
-                                            >
-                                              恢复通用比例
-                                            </button>
-                                          )}
-                                        </div>
-                                        {isDifferent && (
-                                          <div className="text-[10px] text-amber-600 font-medium bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100/70 select-none scale-95 origin-center text-center max-w-[210px] truncate" title={ratiosForGroup.map(r => `${r.name}:${r.max - r.min}%`).join('/')}>
-                                            已设: {ratiosForGroup.map(r => `${r.name}:${r.max - r.min}%`).join(' / ')}
+                                    return (
+                                      <tr key={idx} className="border-b border-neutral-100 last:border-b-0 text-[#1F2937] hover:bg-neutral-50/50">
+                                        <td className="py-2.5 px-3 font-medium text-[#1F2937] sticky left-0 bg-white z-[2] shadow-[2px_0_5px_rgba(83,84,85,0.04)] border-r border-neutral-150">
+                                          <div className="flex items-center gap-1.5 truncate max-w-[215px]">
+                                            <span className="w-1 h-3 bg-[#15B8A6]/60 rounded-sm inline-block"></span>
+                                            <span className="truncate" title={g.name}>{g.name}</span>
+                                            {isDifferent && (
+                                              <span className="text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.2 rounded border border-amber-250 font-bold select-none shrink-0 scale-90">
+                                                专
+                                              </span>
+                                            )}
+                                            {isDifferent && (
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  const updated = { ...groupRatiosOverride };
+                                                  delete updated[g.name];
+                                                  setGroupRatiosOverride(updated);
+                                                }}
+                                                className="ml-1 p-1 text-[#15B8A6] hover:bg-[#15B8A6]/10 rounded transition-colors shrink-0 flex items-center justify-center cursor-pointer group/restore relative"
+                                                title="恢复通用比例"
+                                              >
+                                                <RefreshCw size={11} className="transition-transform group-hover/restore:rotate-180" />
+                                                <span className="absolute bottom-[100%] left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/restore:block bg-[#1F2937] text-white text-[10px] px-1.5 py-0.5 rounded shadow-lg whitespace-nowrap z-50">
+                                                  恢复通用比例
+                                                </span>
+                                              </button>
+                                            )}
                                           </div>
-                                        )}
-                                      </div>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
+                                        </td>
+                                        {rankRatios.map((ratio) => {
+                                          const matchRatio = ratiosForGroup.find(r => r.name === ratio.name) || ratio;
+                                          const pct = Math.max(0, matchRatio.max - matchRatio.min);
+                                          const expected = Math.round((pct * g.size) / 100);
+                                          return (
+                                            <td key={ratio.name} className="py-2.5 px-3 text-right font-semibold text-[#15B8A6]">
+                                              <span>{expected}人</span>
+                                              {isDifferent && (
+                                                <span className="block text-[9px] font-normal text-amber-500 scale-90 text-right pr-0.5">
+                                                  ({pct}%)
+                                                </span>
+                                              )}
+                                            </td>
+                                          );
+                                        })}
+                                        <td className="py-2.5 px-3 text-center text-[#6B7280] font-medium border-l border-neutral-100">
+                                          {g.size}人
+                                        </td>
+                                        <td className="py-2.5 px-3">
+                                          <div className="flex flex-col gap-1 items-center justify-center">
+                                            <div className="flex items-center gap-1.5 justify-center">
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setEditingGroupRatios({ 
+                                                    groupName: g.name, 
+                                                    ratios: ratiosForGroup.map(r => ({ ...r })) 
+                                                  });
+                                                  setTempGroupSameScoreRule(groupSameScoreRule[g.name] || sameScoreRule);
+                                                  setTempGroupRemainderRule(groupRemainderRule[g.name] || remainderRule);
+                                                  setTempGroupRemainderSpecificLevel(groupRemainderSpecificLevel[g.name] || remainderSpecificLevel);
+                                                }}
+                                                className="text-[11px] text-[#15B8A6] hover:text-[#0f9688] font-semibold flex items-center gap-0.5 cursor-pointer bg-[#15B8A6]/5 hover:bg-[#15B8A6]/10 px-2 py-1 rounded transition-colors"
+                                              >
+                                                <SlidersHorizontal size={10} />
+                                                调整比例
+                                              </button>
+                                            </div>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
                             </tbody>
                           </table>
                         </div>
@@ -5583,7 +5568,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                     <tbody>
                                       {inlineGroupRatios.map((ratio, rIdx) => {
                                         const isLast = rIdx === inlineGroupRatios.length - 1;
-                                        const currentMin = rIdx > 0 ? (inlineGroupRatios[rIdx - 1].max || 0) : ratio.min;
+                                        const currentMin = rIdx === 0 ? 0 : (inlineGroupRatios[rIdx - 1].max || 0);
                                         const currentMax = isLast ? 100 : ratio.max;
                                         const pct = Math.max(0, currentMax - currentMin);
                                         const expectedValue = Math.round((pct * g.size) / 100);
@@ -5601,7 +5586,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                                     min="0"
                                                     max="100"
                                                     value={currentMin}
-                                                    disabled={rIdx > 0}
+                                                    disabled
                                                     onChange={(e) => {
                                                       const val = Math.min(100, Math.max(0, Number(e.target.value)));
                                                       const updated = inlineGroupRatios.map((r, i) =>
@@ -5609,7 +5594,7 @@ function AssessmentResultSettingSim({ onBack }: { onBack: () => void }) {
                                                       );
                                                       setInlineGroupRatios(updated);
                                                     }}
-                                                    className={`w-full h-[26px] pl-1.5 pr-4 border border-neutral-200 rounded-[4px] text-[11px] focus:outline-none focus:border-[#15B8A6] ${rIdx > 0 ? "bg-neutral-50 text-neutral-400 cursor-not-allowed" : ""}`}
+                                                    className={`w-full h-[26px] pl-1.5 pr-4 border border-neutral-200 rounded-[4px] text-[11px] focus:outline-none focus:border-[#15B8A6] bg-neutral-50 text-neutral-400 cursor-not-allowed`}
                                                   />
                                                   <span className="absolute right-1 text-[9px] text-[#9CA3AF] top-[5px]">%</span>
                                                 </div>
